@@ -38,6 +38,18 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	zipPath, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id)
+	if after, ok := strings.CutPrefix(zipPath, "too_many_stickers_"); ok {
+		path := after
+		parts := strings.Split(path, "_")
+		length := parts[0]
+		limit := parts[1]
+		msg := fmt.Sprintf("贴纸包包含 %s 张贴纸，超过每包限制的 %s 张。", length, limit)
+		_, _, _ = b.EditMessageText(msg, &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return fmt.Errorf("%s", err.Error())
+	}
 	if err != nil {
 		_, _, _ = b.EditMessageText("获取贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,

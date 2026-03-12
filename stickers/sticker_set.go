@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
 
@@ -20,6 +21,15 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, e
 	stickerSet, err := b.GetStickerSet(stickerSetName, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get sticker set: %v", err)
+	}
+	cf, err := config.Init()
+	if err != nil {
+		return "", fmt.Errorf("failed to load config: %v", err)
+	}
+	packLength := len(stickerSet.Stickers)
+	if packLength > cf.LimitPerPack {
+		tms := fmt.Sprintf("too_many_stickers_%d_%d", packLength, cf.LimitPerPack)
+		return tms, fmt.Errorf("sticker pack contains %d stickers, which exceeds the per-pack limit of %d", packLength, cf.LimitPerPack)
 	}
 
 	var filePaths []string

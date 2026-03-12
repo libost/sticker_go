@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Token            string `yaml:"token"`
 	Limit            int    `yaml:"limit"`
+	LimitPerPack     int    `yaml:"limit_per_pack"`
 	CacheExpireHours int    `yaml:"cache_expire_hours"`
 	CacheSizeLimitMB int    `yaml:"cache_size_limit_mb"`
 	Adminkey         string `yaml:"adminkey"`
