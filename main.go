@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"libost/sticker_go/callback"
 	"libost/sticker_go/commands"
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
@@ -87,6 +88,7 @@ func main() {
 	// 4. 添加处理器 (Handler)
 	commands.AddHandlers(dispatcher)
 	stickers.AddHandlers(dispatcher)
+	callback.AddHandlers(dispatcher)
 
 	// 5. 启动轮询
 	err = updater.StartPolling(b, &ext.PollingOpts{

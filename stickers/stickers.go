@@ -138,9 +138,22 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
+	inlineKeyboard := gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:            "获取整套贴纸包",
+					CallbackData:    fmt.Sprintf("get_pack_%s", sticker.SetName),
+					// 这里的 CallbackData 可以用来在回调查询处理器中识别用户点击了哪个按钮
+					// 你需要在回调查询处理器中解析这个数据，并根据 sticker.SetName 来获取并发送整套贴纸包
+				},
+			},
+		},
+	}
 	_, _, _ = b.EditMessageText("处理完成！", &gotgbot.EditMessageTextOpts{
 		ChatId:    sentMsg.Chat.Id,
 		MessageId: sentMsg.MessageId,
+		ReplyMarkup: inlineKeyboard,
 	})
 	return nil
 }
