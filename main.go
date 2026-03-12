@@ -136,7 +136,6 @@ func main() {
 	}
 	logText := fmt.Sprintf("%s has started...", b.User.Username)
 	L.Log(logText, C.LogLevelInfo)
-	log.Printf("%s", logText)
 	updater.Idle() // 阻塞直到进程被关闭
 }
 
