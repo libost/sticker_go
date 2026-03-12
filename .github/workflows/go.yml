@@ -36,10 +36,10 @@ jobs:
           go-version: '1.25'
 
       - name: Build
-        run: go build -v -o sticker_go  # 这里换成你语言的编译命令
+        run: go build -v -o sticker_go${{ matrix.os}}${{ matrix.suffix }}  # 这里换成你语言的编译命令
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.os }}${{ matrix.suffix }}  # 把不同平台的文件分别保存
+          name: ${{ matrix.artifact_name }}-${{ matrix.os }}  # 把不同平台的文件分别保存
           path: sticker_go*
