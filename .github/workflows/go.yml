@@ -37,6 +37,7 @@ jobs:
 
       - name: Prepare version info
         id: meta
+        shell: bash
         run: |
           # 获取当前时间并格式化为字符串
           echo "build_time=$(date +'%Y-%m-%d_%T')" >> $GITHUB_OUTPUT
@@ -46,7 +47,8 @@ jobs:
           echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
 
       - name: Build
-        run: go build -ldflags "-X 'version.Version=${{ github.ref_name }}' -X 'version.BuildTime=${{ steps.meta.outputs.build_time }}' -X 'version.GitCommit=${{ steps.meta.outputs.short_sha }}' -X 'version.Branch=${{ steps.meta.outputs.branch }}'" -v -o sticker_go-${{ matrix.os}}${{ matrix.suffix }}  # 这里换成你语言的编译命令
+        shell: bash
+        run: go build -ldflags "-X libost/sticker_go/version.Version=${{ github.ref_name }} -X libost/sticker_go/version.BuildTime=${{ steps.meta.outputs.build_time }} -X libost/sticker_go/version.GitCommit=${{ steps.meta.outputs.short_sha }} -X libost/sticker_go/version.Branch=${{ steps.meta.outputs.branch }}" -v -o sticker_go-${{ matrix.os}}${{ matrix.suffix }}  # 这里换成你语言的编译命令
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
