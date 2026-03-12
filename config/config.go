@@ -10,16 +10,40 @@ import (
 )
 
 type Config struct {
-	Token            string `yaml:"token"`
-	Limit            int    `yaml:"limit" default:"100"`
-	LimitPerPack     int    `yaml:"limit_per_pack" default:"100"`
-	CacheExpireHours int    `yaml:"cache_expire_hours" default:"1"`
-	CacheSizeLimitMB int    `yaml:"cache_size_limit_mb" default:"500"`
-	Adminkey         string `yaml:"adminkey" default:"123"`
-	SubToggle        bool   `yaml:"sub_toggle" default:"false"`
-	Channel          string `yaml:"channel,omitempty"`
-	LogExpireDays    int    `yaml:"log_expire_days" default:"7"`
-	Timezone         string `yaml:"timezone" default:"Asia/Shanghai"`
+	General struct {
+		Token        string `yaml:"token"`
+		Limit        int    `yaml:"limit" default:"100"`
+		LimitPerPack int    `yaml:"limit_per_pack" default:"100"`
+		Adminkey     string `yaml:"adminkey" default:"123"`
+	} `yaml:"general,omitempty"`
+	Cache struct {
+		ExpireHours int `yaml:"expire_hours" default:"1"`
+		SizeLimitMB int `yaml:"size_limit_mb" default:"500"`
+	} `yaml:"cache,omitempty"`
+	Subscription struct {
+		Enabled bool   `yaml:"enabled" default:"false"`
+		Channel string `yaml:"channel,omitempty"`
+	} `yaml:"subscription,omitempty"`
+	Log struct {
+		ExpireDays int `yaml:"expire_days" default:"7"`
+	} `yaml:"log,omitempty"`
+	Webhook struct {
+		Enabled bool   `yaml:"enabled" default:"false"`
+		URL     string `yaml:"url,omitempty"`
+		Port    int    `yaml:"port" default:"8080"`
+		Secret  string `yaml:"secret,omitempty"`
+	} `yaml:"webhook,omitempty"`
+	Proxy struct {
+		Enabled  bool   `yaml:"enabled" default:"false"`
+		Type     string `yaml:"type,omitempty"` // "socks5" 或 "http"
+		Host     string `yaml:"host,omitempty"`
+		Port     int    `yaml:"port,omitempty"`
+		Username string `yaml:"username,omitempty"`
+		Password string `yaml:"password,omitempty"`
+	} `yaml:"proxy,omitempty"`
+	Misc struct {
+		Timezone string `yaml:"timezone" default:"Asia/Shanghai"`
+	} `yaml:"misc,omitempty"`
 }
 
 func loadConfig(configPath string) (*Config, error) {

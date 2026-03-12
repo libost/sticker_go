@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"golang.org/x/net/proxy"
 
 	_ "time/tzdata"
 )
@@ -35,18 +37,39 @@ func main() {
 		L.Log("config initialization returned nil config", C.LogLevelFatal)
 		log.Fatal("config initialization returned nil config")
 	}
-	if cfg.SubToggle && strings.TrimSpace(cfg.Channel) == "" {
+	if cfg.Subscription.Enabled && strings.TrimSpace(cfg.Subscription.Channel) == "" {
 		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelFatal)
 		log.Fatal("subscription check is enabled but channel is not set in config")
 	}
-	token := cfg.Token
+	token := cfg.General.Token
 	if strings.TrimSpace(token) == "" || token == "YOUR_TOKEN_HERE" {
 		L.Log("config.yaml token is empty or still using the placeholder value", C.LogLevelFatal)
 		log.Fatal("config.yaml token is empty or still using the placeholder value")
 	}
+	httpClient := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	if cfg.Proxy.Enabled {
+		switch cfg.Proxy.Type {
+		case "socks5":
+			dialer, _ := proxy.SOCKS5("tcp", fmt.Sprintf("%s:%d", cfg.Proxy.Host, cfg.Proxy.Port), nil, proxy.Direct)
+			httpClient = &http.Client{
+				Transport: &http.Transport{
+					Dial: dialer.Dial,
+				},
+			}
+		case "http":
+			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%d", cfg.Proxy.Host, cfg.Proxy.Port))
+			httpClient = &http.Client{
+				Transport: &http.Transport{
+					Proxy: http.ProxyURL(proxyUrl),
+				},
+			}
+		}
+	}
 	b, err := gotgbot.NewBot(token, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
-			Client: http.Client{}, // 可以配置代理
+			Client: *httpClient, // 可以配置代理
 		},
 	})
 	if err != nil {
@@ -73,7 +96,7 @@ func main() {
 		cleanCache(cacheDir, cfg)
 
 		// 之后每隔 1 小时检查一次
-		ticker := time.NewTicker(time.Duration(cfg.CacheExpireHours) * time.Hour)
+		ticker := time.NewTicker(time.Duration(cfg.Cache.ExpireHours) * time.Hour)
 		for range ticker.C {
 			cleanCache(cacheDir, cfg)
 		}
@@ -121,20 +144,45 @@ func main() {
 	stickers.AddHandlers(dispatcher)
 	callback.AddHandlers(dispatcher)
 
-	// 5. 启动轮询
-	err = updater.StartPolling(b, &ext.PollingOpts{
-		DropPendingUpdates: true, // 启动时忽略之前的积压消息
-		GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
-			Timeout: 9,
-			RequestOpts: &gotgbot.RequestOpts{
-				Timeout: time.Second * 10,
+	// 5. 启动 Bot
+	if cfg.Webhook.Enabled {
+		// 启动 Webhook 服务器
+		listenaddr := fmt.Sprintf("0.0.0.0:%d", cfg.Webhook.Port)
+		webhookOpts := ext.WebhookOpts{
+			ListenAddr:  listenaddr,         // 本地监听端口
+			SecretToken: cfg.Webhook.Secret, // 建议设置，防止他人恶意请求你的接口
+		}
+		err := updater.StartWebhook(b, cfg.Webhook.URL, webhookOpts)
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to start webhook: %v", err), C.LogLevelFatal)
+			panic("failed to start webhook: " + err.Error())
+		}
+
+		// 5. 设置 Telegram 的 Webhook URL (这一步会发请求给 Telegram 告知地址)
+		_, err = b.SetWebhook(cfg.Webhook.URL, &gotgbot.SetWebhookOpts{
+			SecretToken:        webhookOpts.SecretToken,
+			DropPendingUpdates: true,
+		})
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to set webhook: %v", err), C.LogLevelFatal)
+			panic("failed to set webhook: " + err.Error())
+		}
+	} else {
+		err = updater.StartPolling(b, &ext.PollingOpts{
+			DropPendingUpdates: true, // 启动时忽略之前的积压消息
+			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
+				Timeout: 9,
+				RequestOpts: &gotgbot.RequestOpts{
+					Timeout: time.Second * 10,
+				},
 			},
-		},
-	})
-	if err != nil {
-		L.Log(fmt.Sprintf("failed to start polling: %v", err), C.LogLevelFatal)
-		panic("failed to start polling: " + err.Error())
+		})
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to start polling: %v", err), C.LogLevelFatal)
+			panic("failed to start polling: " + err.Error())
+		}
 	}
+
 	logText := fmt.Sprintf("%s has started...", b.User.Username)
 	L.Log(logText, C.LogLevelInfo)
 	updater.Idle() // 阻塞直到进程被关闭
@@ -148,7 +196,7 @@ func cleanCache(cacheDir string, cfg *config.Config) {
 	}
 
 	now := time.Now()
-	threshold := time.Duration(cfg.CacheExpireHours) * time.Hour // 设定过期时间为配置中指定的小时数
+	threshold := time.Duration(cfg.Cache.ExpireHours) * time.Hour // 设定过期时间为配置中指定的小时数
 
 	var totalSize int64
 
@@ -174,7 +222,7 @@ func cleanCache(cacheDir string, cfg *config.Config) {
 		}
 		totalSize += info.Size()
 	}
-	if totalSize > int64(cfg.CacheSizeLimitMB)*1024*1024 {
+	if totalSize > int64(cfg.Cache.SizeLimitMB)*1024*1024 {
 		L.Log(fmt.Sprintf("cache size exceeded limit: %d MB", totalSize/1024/1024), C.LogLevelWarn)
 		err := os.RemoveAll(cacheDir)
 		if err != nil {
@@ -193,7 +241,7 @@ func clearLogs(logDir string, cfg *config.Config) {
 		return
 	}
 	now := time.Now()
-	threshold := time.Duration(cfg.LogExpireDays) * 24 * time.Hour // 设定过期时间为配置中指定的天数
+	threshold := time.Duration(cfg.Log.ExpireDays) * 24 * time.Hour // 设定过期时间为配置中指定的天数
 	for _, file := range files {
 		if file.IsDir() {
 			continue

@@ -39,14 +39,14 @@ func SubscribeCheck(b *gotgbot.Bot, uid int64) error {
 		log.Log(fmt.Sprintf("User %d failed to load config for subscription check: %v", uid, err), C.LogLevelError)
 		return err
 	}
-	if cf.Channel == "" {
+	if cf.Subscription.Channel == "" {
 		log.Log(fmt.Sprintf("User %d failed to check subscription: channel is empty", uid), C.LogLevelError)
 		return fmt.Errorf("channel is empty")
 	}
 
 	url := "https://api.telegram.org/bot" + b.Token + "/getChatMember"
 	payload := getChatMemberRequest{
-		ChatID: cf.Channel,
+		ChatID: cf.Subscription.Channel,
 		UserID: uid,
 	}
 	body, err := json.Marshal(payload)

@@ -2,14 +2,14 @@ package commands
 
 import (
 	"fmt"
-	"libost/sticker_go/config"
-	"libost/sticker_go/database"
 	"os"
 	"runtime"
 	"runtime/metrics"
 	"time"
 
+	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
+	"libost/sticker_go/database"
 	"libost/sticker_go/log"
 	"libost/sticker_go/utils"
 	V "libost/sticker_go/version"
@@ -34,7 +34,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 
 // start 处理器函数
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
-	_, err := ctx.EffectiveMessage.Reply(b, "你好！我是用 gotgbot 编写的机器人。", nil)
+	_, err := ctx.EffectiveMessage.Reply(b, "您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。", nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -51,7 +51,12 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // help 处理器函数
 func help(b *gotgbot.Bot, ctx *ext.Context) error {
-	_, err := ctx.EffectiveMessage.Reply(b, "这是帮助信息。", nil)
+	displayText := "/start - 开始使用机器人\n" +
+		"/help - 获取帮助信息\n" +
+		"/usage - 查看使用情况\n" +
+		"/about - 查看版本信息"
+
+	_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -96,7 +101,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		data["usage"] = float64(0)
 		data["last_cycle_starts_at"] = float64(time.Now().Unix() + 24*3600)
 	}
-	limit := cf.Limit
+	limit := cf.General.Limit
 	remaining := max(limit-int(data["usage"].(float64)), 0)
 	nextRefresh := time.Unix(int64(data["last_cycle_starts_at"].(float64))+24*3600, 0).Format("2006-01-02 15:04:05")
 	info := fmt.Sprintf("使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s",
@@ -133,6 +138,11 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		cacheSize = 0
 	}
+	logDir := C.LogDir
+	logSize, err := utils.GetDirSize(logDir)
+	if err != nil {
+		logSize = 0
+	}
 	samples := make([]metrics.Sample, 1)
 	samples[0].Name = "/memory/classes/heap/objects:bytes"
 	metrics.Read(samples)
@@ -147,11 +157,12 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		runtime.ReadMemStats(&mem)
 		memoryBytes = mem.Alloc
 	}
-	info := fmt.Sprintf("管理员统计信息:\n总用户数: %d\n总使用次数: %d\n当前缓存占用: %d MB\n当前内存使用: %d MB",
+	info := fmt.Sprintf("管理员统计信息:\n总用户数: %d\n总使用次数: %d\n当前缓存占用: %d MB\n当前内存使用: %d MB\n当前日志占用: %d MB",
 		int(stats["stats"].(map[string]any)["total_users"].(float64)),
 		int(stats["stats"].(map[string]any)["total_usage"].(float64)),
 		cacheSize/1024/1024,
-		memoryBytes/1024/1024)
+		memoryBytes/1024/1024,
+		logSize/1024/1024)
 	_, err = ctx.EffectiveMessage.Reply(b, info, nil)
 	log.Log(fmt.Sprintf("User %d triggered /getstats", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
@@ -185,7 +196,7 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	if arg[1] != cf.Adminkey {
+	if arg[1] != cf.General.Adminkey {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin with incorrect key", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		displayText := "密钥错误，你没有权限成为管理员。"
 		_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
@@ -271,6 +282,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		{Command: "start", Description: "开始使用机器人"},
 		{Command: "help", Description: "获取帮助信息"},
 		{Command: "usage", Description: "查看使用情况"},
+		{Command: "about", Description: "查看版本信息"},
 	}
 	_, err = b.SetMyCommands(commands, nil)
 	if err != nil {
@@ -282,7 +294,39 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
-	_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("版本: %s\n构建时间: %s\nGit 提交: %s\n分支: %s", V.Version, V.BuildTime, V.GitCommit, V.Branch), nil)
+	_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("版本: <code>%s</code>\n构建时间: <code>%s</code>\nGit 提交: <code>%s</code>\n分支: <code>%s</code>\n项目地址: https://github.com/libost/sticker_go", V.Version, V.BuildTime, V.GitCommit, V.Branch), &gotgbot.SendMessageOpts{
+		ParseMode: "HTML",
+	})
 	log.Log(fmt.Sprintf("User %d triggered /about", ctx.EffectiveUser.Id), C.LogLevelInfo)
+	return err
+}
+
+func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
+	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if !data["exists"].(bool) {
+		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		database.Init("create", ctx.EffectiveUser.Id, nil)
+		return err
+	}
+	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /clearlogs without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		return err
+	}
+	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{Text: "确认", CallbackData: "clear_logs_confirm"},
+				{Text: "取消", CallbackData: "clear_logs_cancel"},
+			},
+		},
+	}
+	_, err = ctx.EffectiveMessage.Reply(b, "真的要清除日志吗？", &gotgbot.SendMessageOpts{
+		ReplyMarkup: inlineKeyboard,
+	})
+	log.Log(fmt.Sprintf("User %d triggered /clearlogs", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }

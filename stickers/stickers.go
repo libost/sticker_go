@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
+	"libost/sticker_go/log"
 	"libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -41,24 +43,32 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	if cf.SubToggle {
+	if cf.Subscription.Enabled {
 		err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
 		if err != nil {
+			channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
 			if errors.Is(err, utils.ErrUserNotSubscribed) {
-				_, replyErr := ctx.EffectiveMessage.Reply(b, "请先订阅频道以使用此功能。", nil)
+
+				displayText := fmt.Sprintf("🤖 为了支持我们的项目并继续提供免费服务，请先加入<a href=\"https://t.me/%s\">官方频道</a> %s 后再使用本功能哦！\n✅ 加入后请再次点击您刚才发送的命令即可继续。", channel, cf.Subscription.Channel)
+				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+					ParseMode: "HTML",
+				})
 				if replyErr != nil {
 					return replyErr
 				}
 				return nil
 			}
-			_, replyErr := ctx.EffectiveMessage.Reply(b, "订阅检查失败，请稍后重试。", nil)
+			displayText := fmt.Sprintf("🤖 订阅检查失败，请稍后重试。\n您确定订阅了我们的<a href=\"https://t.me/%s\">官方频道</a> %s 吗？", channel, cf.Subscription.Channel)
+			_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+				ParseMode: "HTML",
+			})
 			if replyErr != nil {
 				return replyErr
 			}
 			return err
 		}
 	}
-	limit := cf.Limit
+	limit := cf.General.Limit
 	if int(currentUsage["usage"].(float64)) >= limit {
 		_, err = ctx.EffectiveMessage.Reply(b, fmt.Sprintf("你已达到使用限制，每周期最多使用 %d 次。", limit), nil)
 		return err
@@ -95,7 +105,8 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	}
 	if err == nil {
-		fmt.Printf("贴纸已缓存: %s\n", C.CacheDir+sticker.FileId+fileExtConverted)
+		log.Log(fmt.Sprintf("Sticker cached: %s", C.CacheDir+sticker.FileId+fileExtConverted), C.LogLevelInfo)
+		fmt.Printf("Sticker cached: %s\n", C.CacheDir+sticker.FileId+fileExtConverted)
 		fileExist, err := os.Open(C.CacheDir + sticker.FileId + fileExtConverted)
 		if err != nil {
 			return err
@@ -141,17 +152,20 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("贴纸已保存为 PNG: %s\n", filePath)
+		log.Log(fmt.Sprintf("Sticker saved as PNG: %s", filePath), C.LogLevelInfo)
+		fmt.Printf("Sticker saved as PNG: %s\n", filePath)
 	case ".webm":
 		filePath, err = utils.DecodeWebMToGIF(sticker.FileId)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("视频贴纸已保存为 GIF: %s\n", filePath)
+		log.Log(fmt.Sprintf("Video sticker saved as GIF: %s", filePath), C.LogLevelInfo)
+		fmt.Printf("Video sticker saved as GIF: %s\n", filePath)
 	default:
 		// .tgs 动画贴纸：直接发送原始文件
 		filePath = C.CacheDir + sticker.FileId + fileExt
-		fmt.Printf("贴纸已保存: %s\n", filePath)
+		log.Log(fmt.Sprintf("Animated sticker uses its original file: %s", filePath), C.LogLevelInfo)
+		fmt.Printf("Animated sticker saved: %s\n", filePath)
 	}
 	// 仅在已转换格式时删除原始文件（.tgs 直接发送，无需删除）
 	if fileExt != fileExtConverted {
@@ -172,5 +186,6 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		MessageId:   sentMsg.MessageId,
 		ReplyMarkup: inlineKeyboard,
 	})
+	log.Log(fmt.Sprintf("User %d successfully processed sticker %s", ctx.EffectiveUser.Id, sticker.FileId), C.LogLevelInfo)
 	return nil
 }

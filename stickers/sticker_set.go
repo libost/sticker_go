@@ -4,9 +4,11 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
@@ -16,21 +18,35 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
-// GetStickerPack 下载贴纸包中所有贴纸并返回本地文件路径列表。
+const (
+	maxZipPartSizeBytes  int64 = 50 * 1024 * 1024
+	zipArchiveFooterSize int64 = 22
+	zipEntryHeaderSize   int64 = 30 + 46 + 64
+)
+
+type StickerPackLimitError struct {
+	PackLength int
+	Limit      int
+}
+
+func (e *StickerPackLimitError) Error() string {
+	return fmt.Sprintf("sticker pack contains %d stickers, which exceeds the per-pack limit of %d", e.PackLength, e.Limit)
+}
+
+// GetStickerPack 下载贴纸包中所有贴纸并按 50MB 限制打包后返回本地 zip 路径列表。
 // 已缓存的贴纸会直接复用，无需重新下载。
-func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, error) {
+func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string, error) {
 	stickerSet, err := b.GetStickerSet(stickerSetName, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to get sticker set: %v", err)
+		return nil, fmt.Errorf("failed to get sticker set: %v", err)
 	}
 	cf, err := config.Init()
 	if err != nil {
-		return "", fmt.Errorf("failed to load config: %v", err)
+		return nil, fmt.Errorf("failed to load config: %v", err)
 	}
 	packLength := len(stickerSet.Stickers)
-	if packLength > cf.LimitPerPack {
-		tms := fmt.Sprintf("too_many_stickers_%d_%d", packLength, cf.LimitPerPack)
-		return tms, fmt.Errorf("sticker pack contains %d stickers, which exceeds the per-pack limit of %d", packLength, cf.LimitPerPack)
+	if packLength > cf.General.LimitPerPack {
+		return nil, &StickerPackLimitError{PackLength: packLength, Limit: cf.General.LimitPerPack}
 	}
 
 	var filePaths []string
@@ -55,12 +71,12 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, e
 		// 获取文件下载链接
 		file, err := b.GetFile(sticker.FileId, nil)
 		if err != nil {
-			return "", fmt.Errorf("failed to get file info for %s: %v", sticker.FileId, err)
+			return nil, fmt.Errorf("failed to get file info for %s: %v", sticker.FileId, err)
 		}
 		downloadURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.Token, file.FilePath)
 		resp, err := http.Get(downloadURL)
 		if err != nil {
-			return "", fmt.Errorf("failed to download sticker %s: %v", sticker.FileId, err)
+			return nil, fmt.Errorf("failed to download sticker %s: %v", sticker.FileId, err)
 		}
 
 		// 保存原始文件
@@ -68,13 +84,13 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, e
 		out, err := os.Create(rawPath)
 		if err != nil {
 			resp.Body.Close()
-			return "", fmt.Errorf("failed to create file %s: %v", rawPath, err)
+			return nil, fmt.Errorf("failed to create file %s: %v", rawPath, err)
 		}
 		_, err = io.Copy(out, resp.Body)
 		out.Close()
 		resp.Body.Close()
 		if err != nil {
-			return "", fmt.Errorf("failed to save sticker %s: %v", sticker.FileId, err)
+			return nil, fmt.Errorf("failed to save sticker %s: %v", sticker.FileId, err)
 		}
 
 		// 格式转换
@@ -83,12 +99,12 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, e
 		case ".webp":
 			convertedPath, err = utils.DecodeWebPToPNG(sticker.FileId)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 		case ".webm":
 			convertedPath, err = utils.DecodeWebMToGIF(sticker.FileId)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 		default:
 			convertedPath = rawPath
@@ -101,22 +117,13 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, e
 
 		filePaths = append(filePaths, convertedPath)
 	}
-	// 将所有贴纸打包成一个 zip 文件，方便用户下载
-	outZipPath := fmt.Sprintf("%s%s.zip", C.CacheDir, stickerSetName)
-	outZip, err := os.Create(outZipPath)
+	zipPaths, err := buildStickerPackZips(stickerSetName, filePaths)
 	if err != nil {
-		return "", fmt.Errorf("failed to create zip file: %v", err)
+		return nil, err
 	}
-	defer outZip.Close()
-	zipWriter := zip.NewWriter(outZip)
-	defer zipWriter.Close()
-	for _, path := range filePaths {
-		if err := addFileToZip(zipWriter, path); err != nil {
-			return "", fmt.Errorf("failed to add file to zip: %v", err)
-		}
-	}
-	database.Init("usageRecord", uid, map[string]any{"usage": len(stickerSet.Stickers)})
-	return outZipPath, nil
+	usage := max(math.Ceil(float64(len(stickerSet.Stickers))/2)-1, 1) // 按照每 2 个贴纸计 1 次使用，向上取整，最后减去 1 次（因为第一次使用不计数）,最少计 1 次
+	database.Init("usageRecord", uid, map[string]any{"usage": usage})
+	return zipPaths, nil
 }
 
 func addFileToZip(archive *zip.Writer, filename string) error {
@@ -127,8 +134,19 @@ func addFileToZip(archive *zip.Writer, filename string) error {
 	}
 	defer file.Close()
 
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
 	// 在 zip 中创建一条记录（仅使用文件名，不含路径）
-	writer, err := archive.Create(filepath.Base(filename))
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return err
+	}
+	header.Name = filepath.Base(filename)
+	header.Method = zip.Store
+	writer, err := archive.CreateHeader(header)
 	if err != nil {
 		return err
 	}
@@ -136,4 +154,148 @@ func addFileToZip(archive *zip.Writer, filename string) error {
 	// 将源文件内容拷贝到 zip 记录中
 	_, err = io.Copy(writer, file)
 	return err
+}
+
+func buildStickerPackZips(stickerSetName string, filePaths []string) ([]string, error) {
+	if len(filePaths) == 0 {
+		return nil, fmt.Errorf("sticker pack %s is empty", stickerSetName)
+	}
+
+	var (
+		zipPaths            []string
+		currentZip          *os.File
+		currentZipWriter    *zip.Writer
+		currentZipPath      string
+		currentZipSize      int64
+		currentZipFileCount int
+	)
+
+	closeCurrentZip := func() error {
+		if currentZipWriter == nil || currentZip == nil {
+			return nil
+		}
+		if err := currentZipWriter.Close(); err != nil {
+			currentZipWriter = nil
+			closeErr := currentZip.Close()
+			currentZip = nil
+			if closeErr != nil {
+				return fmt.Errorf("failed to close zip writer: %v; failed to close zip file: %v", err, closeErr)
+			}
+			return fmt.Errorf("failed to close zip writer: %v", err)
+		}
+		if err := currentZip.Close(); err != nil {
+			currentZip = nil
+			currentZipWriter = nil
+			return fmt.Errorf("failed to close zip file: %v", err)
+		}
+		currentZip = nil
+		currentZipWriter = nil
+		currentZipPath = ""
+		currentZipSize = 0
+		currentZipFileCount = 0
+		return nil
+	}
+
+	cleanupZipPaths := func(paths []string) {
+		for _, path := range paths {
+			_ = os.Remove(path)
+		}
+	}
+
+	createNextZip := func(part int) error {
+		suffix := ".zip"
+		if len(filePaths) > 1 {
+			suffix = fmt.Sprintf(".part%d.zip", part)
+		}
+		currentZipPath = filepath.Join(C.CacheDir, sanitizeZipBaseName(stickerSetName)+suffix)
+		file, err := os.Create(currentZipPath)
+		if err != nil {
+			return fmt.Errorf("failed to create zip file: %v", err)
+		}
+		currentZip = file
+		currentZipWriter = zip.NewWriter(file)
+		currentZipSize = zipArchiveFooterSize
+		currentZipFileCount = 0
+		zipPaths = append(zipPaths, currentZipPath)
+		return nil
+	}
+
+	part := 1
+	if err := createNextZip(part); err != nil {
+		return nil, err
+	}
+
+	for _, path := range filePaths {
+		entrySize, err := estimateZipEntrySize(path)
+		if err != nil {
+			_ = closeCurrentZip()
+			cleanupZipPaths(zipPaths)
+			return nil, err
+		}
+		if entrySize > maxZipPartSizeBytes {
+			_ = closeCurrentZip()
+			cleanupZipPaths(zipPaths)
+			return nil, fmt.Errorf("sticker file %s exceeds zip part size limit", filepath.Base(path))
+		}
+
+		if currentZipFileCount > 0 && currentZipSize+entrySize > maxZipPartSizeBytes {
+			if err := closeCurrentZip(); err != nil {
+				cleanupZipPaths(zipPaths)
+				return nil, err
+			}
+			part++
+			if err := createNextZip(part); err != nil {
+				cleanupZipPaths(zipPaths)
+				return nil, err
+			}
+		}
+
+		if err := addFileToZip(currentZipWriter, path); err != nil {
+			_ = closeCurrentZip()
+			cleanupZipPaths(zipPaths)
+			return nil, fmt.Errorf("failed to add file to zip: %v", err)
+		}
+		currentZipSize += entrySize
+		currentZipFileCount++
+	}
+
+	if err := closeCurrentZip(); err != nil {
+		cleanupZipPaths(zipPaths)
+		return nil, err
+	}
+
+	if len(zipPaths) == 1 && strings.HasSuffix(zipPaths[0], ".part1.zip") {
+		newPath := filepath.Join(C.CacheDir, sanitizeZipBaseName(stickerSetName)+".zip")
+		if err := os.Rename(zipPaths[0], newPath); err != nil {
+			cleanupZipPaths(zipPaths)
+			return nil, fmt.Errorf("failed to rename zip file: %v", err)
+		}
+		zipPaths[0] = newPath
+	}
+
+	return zipPaths, nil
+}
+
+func estimateZipEntrySize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, fmt.Errorf("failed to stat file %s: %v", path, err)
+	}
+	nameLen := int64(len(filepath.Base(path)))
+	return info.Size() + zipEntryHeaderSize + nameLen*2, nil
+}
+
+func sanitizeZipBaseName(name string) string {
+	replacer := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		":", "_",
+		"*", "_",
+		"?", "_",
+		"\"", "_",
+		"<", "_",
+		">", "_",
+		"|", "_",
+	)
+	return replacer.Replace(name)
 }

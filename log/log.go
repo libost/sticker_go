@@ -47,7 +47,7 @@ func timeNow() (string, bool) {
 	if err != nil {
 		log.Fatal("failed to initialize config")
 	}
-	timestamp, err := C.CurrentTime(cf.Timezone)
+	timestamp, err := C.CurrentTime(cf.Misc.Timezone)
 	var isTimeRight bool
 	if err != nil {
 		isTimeRight = false
