@@ -1,5 +1,7 @@
 sticker_go
 sticker_go.exe
+sticker_go_*
+sticker_go_*.*
 cache/
 logs/
 sticker_go.db

@@ -1,8 +1,8 @@
 package version
 
 var (
-	Version   = ""
-	BuildTime = ""
-	GitCommit = ""
-	Branch    = ""
+	Version   = "dev"
+	BuildTime = "Unknown"
+	GitCommit = "none"
+	Branch    = "dev"
 )
