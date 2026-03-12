@@ -7,6 +7,7 @@ require github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.34
 require github.com/goccy/go-yaml v1.19.2
 
 require (
+	github.com/creasty/defaults v1.8.0
 	golang.org/x/image v0.36.0
 	modernc.org/sqlite v1.46.1
 )

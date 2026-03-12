@@ -19,7 +19,7 @@ const (
 func CurrentTime(timezone string) (string, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
-		loc = time.FixedZone("UTC", 0) // Fallback to UTC if timezone is invalid
+		loc, _ = time.LoadLocation("Asia/Shanghai") // Fallback to UTC+8 if timezone is invalid
 	}
 	return time.Now().In(loc).Format("2006-01-02 15:04:05"), err
 }

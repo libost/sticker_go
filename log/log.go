@@ -18,14 +18,19 @@ func Log(message string, level string) {
 			log.Fatal("failed to create log directory")
 		}
 	}
-	timestamp := timeNow()
-	logMessage := fmt.Sprintf("[%s] [%s] %s\n", timestamp, level, message)
+	timestamp, isTimeRight := timeNow()
+	var incorrectTimeNotice string
+	if !isTimeRight {
+		incorrectTimeNotice = " (Current time may be incorrect due to timezone issues, check config)"
+	}
+	logMessage := fmt.Sprintf("[%s] [%s] %s%s\n", timestamp, level, message, incorrectTimeNotice)
 	logToFile(logMessage)
 	os.Stdout.WriteString(logMessage)
 }
 
 func logToFile(message string) {
-	logFilePath := fmt.Sprintf("%s/log_%s.log", C.LogDir, timeNow()[:10]) // 每天一个日志文件，格式为 log_YYYY-MM-DD.log
+	timestamp, _ := timeNow()
+	logFilePath := fmt.Sprintf("%s/log_%s.log", C.LogDir, timestamp[:10]) // 每天一个日志文件，格式为 log_YYYY-MM-DD.log
 	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)
@@ -37,14 +42,17 @@ func logToFile(message string) {
 	}
 }
 
-func timeNow() string {
+func timeNow() (string, bool) {
 	cf, err := config.Init()
 	if err != nil {
 		log.Fatal("failed to initialize config")
 	}
 	timestamp, err := C.CurrentTime(cf.Timezone)
+	var isTimeRight bool
 	if err != nil {
-		log.Fatal("failed to get current time")
+		isTimeRight = false
+	} else {
+		isTimeRight = true
 	}
-	return timestamp
+	return timestamp, isTimeRight
 }

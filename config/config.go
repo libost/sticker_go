@@ -5,20 +5,21 @@ import (
 
 	C "libost/sticker_go/constants"
 
+	"github.com/creasty/defaults"
 	"github.com/goccy/go-yaml"
 )
 
 type Config struct {
 	Token            string `yaml:"token"`
-	Limit            int    `yaml:"limit"`
-	LimitPerPack     int    `yaml:"limit_per_pack"`
-	CacheExpireHours int    `yaml:"cache_expire_hours"`
-	CacheSizeLimitMB int    `yaml:"cache_size_limit_mb"`
-	Adminkey         string `yaml:"adminkey"`
-	SubToggle        bool   `yaml:"sub_toggle"`
-	Channel          string `yaml:"channel" omitempty:""`
-	LogExpireDays    int    `yaml:"log_expire_days"`
-	Timezone         string `yaml:"timezone,omitempty" default:"Asia/Shanghai"`
+	Limit            int    `yaml:"limit" default:"100"`
+	LimitPerPack     int    `yaml:"limit_per_pack" default:"100"`
+	CacheExpireHours int    `yaml:"cache_expire_hours" default:"1"`
+	CacheSizeLimitMB int    `yaml:"cache_size_limit_mb" default:"500"`
+	Adminkey         string `yaml:"adminkey" default:"123"`
+	SubToggle        bool   `yaml:"sub_toggle" default:"false"`
+	Channel          string `yaml:"channel,omitempty"`
+	LogExpireDays    int    `yaml:"log_expire_days" default:"7"`
+	Timezone         string `yaml:"timezone" default:"Asia/Shanghai"`
 }
 
 func loadConfig(configPath string) (*Config, error) {
@@ -27,6 +28,9 @@ func loadConfig(configPath string) (*Config, error) {
 		return nil, err
 	}
 	cf := &Config{}
+	if err := defaults.Set(cf); err != nil {
+		return nil, err
+	}
 	err = yaml.Unmarshal(data, cf)
 	if err != nil {
 		return nil, err
