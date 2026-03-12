@@ -10,19 +10,27 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
-    runs-on: ubuntu-latest
+    name: Compile on ${{ matrix.os }} 
+    runs-on: ${{ matrix.os }}  # 告诉 GitHub 分别开这几台机器
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.25'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
 
-    - name: Build
-      run: go build -v ./...
+      - name: Build
+        run: go build -v -o sticker_go  # 这里换成你语言的编译命令
 
-    - name: Test
-      run: go test -v ./...
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}  # 把不同平台的文件分别保存
+          path: sticker_go*
