@@ -1,22 +1,21 @@
 package stickers
 
 import (
+	"errors"
 	"fmt"
-	"image/png"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
+	"libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
-	"golang.org/x/image/webp"
 )
 
 func AddHandlers(dispatcher *ext.Dispatcher) {
@@ -41,6 +40,23 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	cf, err := config.Init()
 	if err != nil {
 		return err
+	}
+	if cf.SubToggle {
+		err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
+		if err != nil {
+			if errors.Is(err, utils.ErrUserNotSubscribed) {
+				_, replyErr := ctx.EffectiveMessage.Reply(b, "请先订阅频道以使用此功能。", nil)
+				if replyErr != nil {
+					return replyErr
+				}
+				return nil
+			}
+			_, replyErr := ctx.EffectiveMessage.Reply(b, "订阅检查失败，请稍后重试。", nil)
+			if replyErr != nil {
+				return replyErr
+			}
+			return err
+		}
 	}
 	limit := cf.Limit
 	if int(currentUsage["usage"].(float64)) >= limit {
@@ -121,13 +137,13 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var filePath string
 	switch fileExt {
 	case ".webp":
-		filePath, err = decodeWebPToPNG(sticker.FileId)
+		filePath, err = utils.DecodeWebPToPNG(sticker.FileId)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("贴纸已保存为 PNG: %s\n", filePath)
 	case ".webm":
-		filePath, err = decodeWebMToGIF(sticker.FileId)
+		filePath, err = utils.DecodeWebMToGIF(sticker.FileId)
 		if err != nil {
 			return err
 		}
@@ -158,63 +174,3 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	return nil
 }
-
-func decodeWebPToPNG(fileId string) (filePath string, err error) {
-	f, err := os.Open(C.CacheDir + fileId + ".webp")
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	img, err := webp.Decode(f)
-	if err != nil {
-		return "", err
-	}
-	outPutFile, err := os.Create(C.CacheDir + fileId + ".png")
-	if err != nil {
-		return "", err
-	}
-	defer outPutFile.Close()
-	err = png.Encode(outPutFile, img)
-	if err != nil {
-		return "", err
-	}
-	return C.CacheDir + fileId + ".png", nil
-}
-
-func decodeWebMToGIF(fileId string) (filePath string, err error) {
-	// 这里需要使用第三方库来处理 WebM 视频并转换为 GIF
-	// 例如，可以使用 ffmpeg 命令行工具来完成这个任务
-	// 你需要确保系统上安装了 ffmpeg，并且在 PATH 中可用
-	cmd := exec.Command("ffmpeg", "-i", C.CacheDir+fileId+".webm", C.CacheDir+fileId+".gif")
-	err = cmd.Run()
-	if err != nil {
-		return "", err
-	}
-	return C.CacheDir + fileId + ".gif", nil
-}
-
-/*
-func decodeTgsToGif(fileId string) (filePath string, err error) {
-	// 这里需要使用第三方库来处理 TGS 动画贴纸并转换为 GIF
-	// 例如，可以使用 lottie-web 或者其他工具来完成这个任务
-	// 1. 准备 FFmpeg 命令，设置输入为管道
-	cmd := exec.Command("ffmpeg",
-    	"-f", "image2pipe",     // 输入格式为图像流
-    	"-vcodec", "png",       // 或者 rawvideo
-    	"-i", "-",              // 从 Stdin 读取
-    	"-vf", "split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse", // FFmpeg 经典的生成高质量 GIF 的滤镜
-    	C.CacheDir+fileId+".gif",
-	)
-
-	stdin, _ := cmd.StdinPipe()
-	cmd.Start()
-
-	// 2. 循环渲染帧并写入管道
-	for i := 0; i < totalFrames; i++ {
-    	rgbaImg := renderFrame(i) // 使用 rlottie 渲染一帧
-    	png.Encode(stdin, rgbaImg) // 将帧以 PNG 格式写入 FFmpeg 管道
-	}
-
-	stdin.Close()
-	cmd.Wait()
-}*/

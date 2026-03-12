@@ -15,6 +15,8 @@ type Config struct {
 	CacheExpireHours int    `yaml:"cache_expire_hours"`
 	CacheSizeLimitMB int    `yaml:"cache_size_limit_mb"`
 	Adminkey         string `yaml:"adminkey"`
+	SubToggle        bool   `yaml:"sub_toggle"`
+	Channel          string `yaml:"channel"`
 }
 
 func loadConfig(configPath string) (*Config, error) {

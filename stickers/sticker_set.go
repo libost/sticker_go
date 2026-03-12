@@ -11,6 +11,7 @@ import (
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
+	"libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
@@ -80,12 +81,12 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, e
 		var convertedPath string
 		switch fileExt {
 		case ".webp":
-			convertedPath, err = decodeWebPToPNG(sticker.FileId)
+			convertedPath, err = utils.DecodeWebPToPNG(sticker.FileId)
 			if err != nil {
 				return "", err
 			}
 		case ".webm":
-			convertedPath, err = decodeWebMToGIF(sticker.FileId)
+			convertedPath, err = utils.DecodeWebMToGIF(sticker.FileId)
 			if err != nil {
 				return "", err
 			}
