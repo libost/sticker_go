@@ -132,6 +132,7 @@ func main() {
 		},
 	})
 	if err != nil {
+		L.Log(fmt.Sprintf("failed to start polling: %v", err), C.LogLevelFatal)
 		panic("failed to start polling: " + err.Error())
 	}
 	logText := fmt.Sprintf("%s has started...", b.User.Username)
