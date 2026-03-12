@@ -18,6 +18,7 @@ type Config struct {
 	SubToggle        bool   `yaml:"sub_toggle"`
 	Channel          string `yaml:"channel" omitempty:""`
 	LogExpireDays    int    `yaml:"log_expire_days"`
+	Timezone         string `yaml:"timezone,omitempty" default:"Asia/Shanghai"`
 }
 
 func loadConfig(configPath string) (*Config, error) {

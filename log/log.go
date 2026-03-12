@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
+	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 )
 
@@ -18,23 +18,33 @@ func Log(message string, level string) {
 			log.Fatal("failed to create log directory")
 		}
 	}
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	timestamp := timeNow()
 	logMessage := fmt.Sprintf("[%s] [%s] %s\n", timestamp, level, message)
-	logToFile(message, level)
+	logToFile(logMessage)
 	os.Stdout.WriteString(logMessage)
 }
 
-func logToFile(message string, level string) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	logMessage := fmt.Sprintf("[%s] [%s] %s\n", timestamp, level, message)
-	logFilePath := fmt.Sprintf("%s/log_%s.log", C.LogDir, time.Now().Format("2006-01-02"))
+func logToFile(message string) {
+	logFilePath := fmt.Sprintf("%s/log_%s.log", C.LogDir, timeNow()[:10]) // 每天一个日志文件，格式为 log_YYYY-MM-DD.log
 	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)
 		return
 	}
 	defer f.Close()
-	if _, err := f.WriteString(logMessage); err != nil {
+	if _, err := f.WriteString(message); err != nil {
 		fmt.Printf("Failed to write to log file: %v\n", err)
 	}
+}
+
+func timeNow() string {
+	cf, err := config.Init()
+	if err != nil {
+		log.Fatal("failed to initialize config")
+	}
+	timestamp, err := C.CurrentTime(cf.Timezone)
+	if err != nil {
+		log.Fatal("failed to get current time")
+	}
+	return timestamp
 }
