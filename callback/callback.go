@@ -1,6 +1,7 @@
 package callback
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -28,44 +29,59 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	sentMsg, err := b.SendMessage(ctx.EffectiveUser.Id, "正在下载整套贴纸包，请稍候...", nil)
+	_, _, err = b.EditMessageText("正在获取贴纸包，请稍候...", &gotgbot.EditMessageTextOpts{
+		ChatId:    ctx.EffectiveChat.Id,
+		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+	})
 	if err != nil {
 		return err
 	}
 
-	zipPath, err := stickers.GetStickerPack(b, packName)
+	zipPath, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id)
 	if err != nil {
 		_, _, _ = b.EditMessageText("获取贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
-			ChatId:    sentMsg.Chat.Id,
-			MessageId: sentMsg.MessageId,
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
 		return err
 	}
 	f, err := os.Open(zipPath)
 	if err != nil {
 		_, _, _ = b.EditMessageText("获取贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
-			ChatId:    sentMsg.Chat.Id,
-			MessageId: sentMsg.MessageId,
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
 		return err
 	}
-	defer f.Close()
 	_, err = b.SendDocument(ctx.EffectiveUser.Id, gotgbot.InputFileByReader(f.Name(), f), nil)
+	closeErr := f.Close()
 	if err != nil {
+		if removeErr := os.Remove(zipPath); removeErr != nil {
+			fmt.Printf("failed to remove zip after send error %s: %v\n", zipPath, removeErr)
+		}
 		_, _, _ = b.EditMessageText("发送贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
-			ChatId:    sentMsg.Chat.Id,
-			MessageId: sentMsg.MessageId,
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
 		return err
+	}
+	if closeErr != nil {
+		_, _, _ = b.EditMessageText("发送贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return closeErr
 	}
 
 	_, _, _ = b.EditMessageText(
 		"贴纸包下载完成！",
 		&gotgbot.EditMessageTextOpts{
-			ChatId:    sentMsg.Chat.Id,
-			MessageId: sentMsg.MessageId,
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		},
 	)
-	err = os.Remove(zipPath)
+	if err = os.Remove(zipPath); err != nil {
+		fmt.Printf("failed to remove zip %s: %v\n", zipPath, err)
+	}
 	return nil
 }

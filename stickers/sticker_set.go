@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 
 	C "libost/sticker_go/constants"
+	"libost/sticker_go/database"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
 // GetStickerPack 下载贴纸包中所有贴纸并返回本地文件路径列表。
 // 已缓存的贴纸会直接复用，无需重新下载。
-func GetStickerPack(b *gotgbot.Bot, stickerSetName string) (string, error) {
+func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) (string, error) {
 	stickerSet, err := b.GetStickerSet(stickerSetName, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get sticker set: %v", err)
@@ -103,6 +104,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string) (string, error) {
 			return "", fmt.Errorf("failed to add file to zip: %v", err)
 		}
 	}
+	database.Init("usageRecord", uid, map[string]any{"usage": len(stickerSet.Stickers)})
 	return outZipPath, nil
 }
 

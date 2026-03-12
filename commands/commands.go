@@ -91,7 +91,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		data["last_cycle_starts_at"] = float64(time.Now().Unix() + 24*3600)
 	}
 	limit := cf.Limit
-	remaining := limit - int(data["usage"].(float64))
+	remaining := max(limit-int(data["usage"].(float64)), 0)
 	nextRefresh := time.Unix(int64(data["last_cycle_starts_at"].(float64))+24*3600, 0).Format("2006-01-02 15:04:05")
 	info := fmt.Sprintf("使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s",
 		int(data["usage"].(float64)), remaining, nextRefresh)
