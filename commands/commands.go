@@ -10,6 +10,7 @@ import (
 	"time"
 
 	C "libost/sticker_go/constants"
+	"libost/sticker_go/log"
 	"libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -42,6 +43,7 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	}
+	log.Log(fmt.Sprintf("User %d triggered /start", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
 
@@ -58,6 +60,7 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	}
+	log.Log(fmt.Sprintf("User %d triggered /help", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
 
@@ -68,6 +71,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if !data["exists"].(bool) {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /usage without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
 		if err != nil {
 			return err
@@ -96,6 +100,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	info := fmt.Sprintf("使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s",
 		int(data["usage"].(float64)), remaining, nextRefresh)
 	_, err = ctx.EffectiveMessage.Reply(b, info, nil)
+	log.Log(fmt.Sprintf("User %d triggered /usage", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
 
@@ -106,11 +111,13 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if !data["exists"].(bool) {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /getstats without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
 	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /getstats without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		return err
 	}
@@ -144,6 +151,7 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		cacheSize/1024/1024,
 		memoryBytes/1024/1024)
 	_, err = ctx.EffectiveMessage.Reply(b, info, nil)
+	log.Log(fmt.Sprintf("User %d triggered /getstats", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 
 }
@@ -156,15 +164,18 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if !data["exists"].(bool) {
 		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
 	if data["user_group"].(string) == "admin" {
 		_, err := ctx.EffectiveMessage.Reply(b, "你已经是管理员了。", nil)
+		log.Log(fmt.Sprintf("User %d is already an admin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 		return err
 	}
 	arg := ctx.Args()
 	if len(arg) == 1 {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin without providing a key", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "请提供密钥。", nil)
 		return err
 	}
@@ -173,6 +184,7 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if arg[1] != cf.Adminkey {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin with incorrect key", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		displayText := "密钥错误，你没有权限成为管理员。"
 		_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
 		return err
@@ -182,6 +194,7 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, "你现在是管理员了！", nil)
+	log.Log(fmt.Sprintf("User %d triggered /setadmin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
 
@@ -191,16 +204,19 @@ func resetUsage(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if !data["exists"].(bool) {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /reset without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
 	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /reset without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		return err
 	}
 	database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
 	_, err = ctx.EffectiveMessage.Reply(b, "使用记录已重置！", nil)
+	log.Log(fmt.Sprintf("User %d triggered /reset", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
 
@@ -215,6 +231,7 @@ func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /clearcache without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		return err
 	}
@@ -228,6 +245,7 @@ func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, "缓存已清空！", nil)
+	log.Log(fmt.Sprintf("User %d triggered /clearcache", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 
 }
@@ -243,6 +261,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /setcommands without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		return err
 	}
@@ -256,5 +275,6 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, "命令列表已更新！", nil)
+	log.Log(fmt.Sprintf("User %d triggered /setcommands", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }

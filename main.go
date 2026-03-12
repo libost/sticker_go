@@ -15,6 +15,7 @@ import (
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
+	L "libost/sticker_go/log"
 	"libost/sticker_go/stickers"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -27,13 +28,20 @@ func main() {
 	// 1. 创建 Bot 实例
 	cfg, err := config.Init()
 	if err != nil {
+		L.Log(fmt.Sprintf("failed to initialize config: %v", err), C.LogLevelFatal)
 		log.Fatal(err)
 	}
 	if cfg == nil {
+		L.Log("config initialization returned nil config", C.LogLevelFatal)
 		log.Fatal("config initialization returned nil config")
+	}
+	if cfg.SubToggle && strings.TrimSpace(cfg.Channel) == "" {
+		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelFatal)
+		log.Fatal("subscription check is enabled but channel is not set in config")
 	}
 	token := cfg.Token
 	if strings.TrimSpace(token) == "" || token == "YOUR_TOKEN_HERE" {
+		L.Log("config.yaml token is empty or still using the placeholder value", C.LogLevelFatal)
 		log.Fatal("config.yaml token is empty or still using the placeholder value")
 	}
 	b, err := gotgbot.NewBot(token, &gotgbot.BotOpts{
@@ -42,18 +50,21 @@ func main() {
 		},
 	})
 	if err != nil {
-		panic("failed to create bot: " + err.Error())
+		L.Log(fmt.Sprintf("failed to create bot: %v", err), C.LogLevelFatal)
+		log.Fatal("failed to create bot")
 	}
 	_, err = database.Init("init", 0, nil) // 初始化数据库连接
 	if err != nil {
-		panic("failed to initialize database: " + err.Error())
+		L.Log(fmt.Sprintf("failed to initialize database: %v", err), C.LogLevelFatal)
+		log.Fatal("failed to initialize database")
 	}
 	cacheDir := C.CacheDir
 	cacheInfo, err := os.Stat(cacheDir) // 检查缓存目录是否存在
 	if os.IsNotExist(err) || (err == nil && !cacheInfo.IsDir()) {
 		err = os.Mkdir(cacheDir, 0755)
 		if err != nil {
-			panic("failed to create cache directory: " + err.Error())
+			L.Log("failed to create cache directory", C.LogLevelFatal)
+			log.Fatal("failed to create cache directory: " + err.Error())
 		}
 	}
 	// 定时清理缓存目录中的过期文件
@@ -70,13 +81,33 @@ func main() {
 	cmd := exec.Command("ffmpeg", "-version")
 	err = cmd.Run() // 检查 ffmpeg 是否可用
 	if err != nil {
-		panic("ffmpeg is not installed or not in PATH: " + err.Error())
+		L.Log(fmt.Sprintf("ffmpeg is not installed or not in PATH: %v", err), C.LogLevelFatal)
+		log.Fatal("ffmpeg is not installed or not in PATH")
 	}
+	logDir := C.LogDir
+	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
+	if os.IsNotExist(err) || (err == nil && !logInfo.IsDir()) {
+		err = os.Mkdir(logDir, 0755)
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to create log directory: %v", err), C.LogLevelFatal)
+			log.Fatal("failed to create log directory")
+		}
+	}
+	// 定时清理日志目录中的过期文件
+	go func() {
+		// 立即执行一次
+		clearLogs(logDir, cfg)
+		// 之后每天检查一次
+		ticker := time.NewTicker(24 * time.Hour)
+		for range ticker.C {
+			clearLogs(logDir, cfg)
+		}
+	}()
 
 	// 2. 创建分发器 (Dispatcher)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
 		Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
-			log.Println("发生错误:", err.Error())
+			L.Log(fmt.Sprintf("发生错误: %v", err), C.LogLevelError)
 			return ext.DispatcherActionNoop
 		},
 		MaxRoutines: ext.DefaultMaxRoutines,
@@ -103,15 +134,16 @@ func main() {
 	if err != nil {
 		panic("failed to start polling: " + err.Error())
 	}
-
-	fmt.Printf("%s 已经启动...\n", b.User.Username)
+	logText := fmt.Sprintf("%s has started...", b.User.Username)
+	L.Log(logText, C.LogLevelInfo)
+	log.Printf("%s", logText)
 	updater.Idle() // 阻塞直到进程被关闭
 }
 
 func cleanCache(cacheDir string, cfg *config.Config) {
 	files, err := os.ReadDir(cacheDir)
 	if err != nil {
-		log.Println("读取缓存目录失败:", err)
+		L.Log(fmt.Sprintf("failed to read cache directory: %v", err), C.LogLevelError)
 		return
 	}
 
@@ -135,21 +167,49 @@ func cleanCache(cacheDir string, cfg *config.Config) {
 			path := filepath.Join(cacheDir, file.Name())
 			err := os.Remove(path)
 			if err != nil {
-				log.Printf("删除过期缓存失败 [%s]: %v\n", path, err)
+				L.Log(fmt.Sprintf("failed to remove expired cache [%s]: %v", path, err), C.LogLevelError)
 			} else {
-				log.Printf("已清理过期缓存: %s\n", file.Name())
+				L.Log(fmt.Sprintf("removed expired cache: %s", file.Name()), C.LogLevelInfo)
 			}
 		}
 		totalSize += info.Size()
 	}
 	if totalSize > int64(cfg.CacheSizeLimitMB)*1024*1024 {
-		log.Printf("缓存大小超过限制: %d MB\n", totalSize/1024/1024)
+		L.Log(fmt.Sprintf("cache size exceeded limit: %d MB", totalSize/1024/1024), C.LogLevelWarn)
 		err := os.RemoveAll(cacheDir)
 		if err != nil {
-			log.Printf("清理缓存失败: %v\n", err)
+			L.Log(fmt.Sprintf("failed to clean cache: %v", err), C.LogLevelError)
 		} else {
-			log.Println("已清理所有缓存文件")
+			L.Log("all cache files have been cleaned", C.LogLevelInfo)
 		}
 		os.Mkdir(cacheDir, 0755) // 重新创建缓存目录
+	}
+}
+
+func clearLogs(logDir string, cfg *config.Config) {
+	files, err := os.ReadDir(logDir)
+	if err != nil {
+		L.Log(fmt.Sprintf("failed to read log directory: %v", err), C.LogLevelError)
+		return
+	}
+	now := time.Now()
+	threshold := time.Duration(cfg.LogExpireDays) * 24 * time.Hour // 设定过期时间为配置中指定的天数
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		info, err := file.Info()
+		if err != nil {
+			continue
+		}
+		if now.Sub(info.ModTime()) > threshold {
+			path := filepath.Join(logDir, file.Name())
+			err := os.Remove(path)
+			if err != nil {
+				L.Log(fmt.Sprintf("failed to remove expired log [%s]: %v", path, err), C.LogLevelError)
+			} else {
+				L.Log(fmt.Sprintf("removed expired log: %s", file.Name()), C.LogLevelInfo)
+			}
+		}
 	}
 }

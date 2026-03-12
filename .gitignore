@@ -1,5 +1,6 @@
 sticker_go
 sticker_go.exe
 cache/
+logs/
 sticker_go.db
 config.yaml

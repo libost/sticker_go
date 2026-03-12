@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	C "libost/sticker_go/constants"
+	"libost/sticker_go/log"
 	"libost/sticker_go/stickers"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -36,6 +38,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Log(fmt.Sprintf("User %d triggered getPackHandler for pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
 
 	zipPath, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id)
 	if after, ok := strings.CutPrefix(zipPath, "too_many_stickers_"); ok {
@@ -48,6 +51,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
+		log.Log(fmt.Sprintf("User %d attempted to download a sticker pack with too many stickers", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		return fmt.Errorf("%s", err.Error())
 	}
 	if err != nil {
@@ -55,6 +59,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
+		log.Log(fmt.Sprintf("User %d failed to download sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelError)
 		return err
 	}
 	f, err := os.Open(zipPath)
@@ -63,6 +68,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
+		log.Log(fmt.Sprintf("User %d failed to open zip file %s", ctx.EffectiveUser.Id, zipPath), C.LogLevelError)
 		return err
 	}
 	_, err = b.SendDocument(ctx.EffectiveUser.Id, gotgbot.InputFileByReader(f.Name(), f), nil)
@@ -70,6 +76,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		if removeErr := os.Remove(zipPath); removeErr != nil {
 			fmt.Printf("failed to remove zip after send error %s: %v\n", zipPath, removeErr)
+			log.Log(fmt.Sprintf("User %d failed to remove zip file %s", ctx.EffectiveUser.Id, zipPath), C.LogLevelError)
 		}
 		_, _, _ = b.EditMessageText("发送贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
@@ -78,6 +85,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if closeErr != nil {
+		log.Log(fmt.Sprintf("User %d failed to close zip file %s: %v", ctx.EffectiveUser.Id, zipPath, closeErr), C.LogLevelError)
 		_, _, _ = b.EditMessageText("发送贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
@@ -92,8 +100,10 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		},
 	)
+	log.Log(fmt.Sprintf("User %d successfully downloaded sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
 	if err = os.Remove(zipPath); err != nil {
 		fmt.Printf("failed to remove zip %s: %v\n", zipPath, err)
+		log.Log(fmt.Sprintf("User %d failed to remove zip file %s", ctx.EffectiveUser.Id, zipPath), C.LogLevelError)
 	}
 	return nil
 }
