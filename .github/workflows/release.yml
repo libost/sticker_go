@@ -30,8 +30,18 @@ jobs:
         with:
           go-version: '1.25.0'
 
+      - name: Prepare version info
+        id: meta
+        run: |
+          # 获取当前时间并格式化为字符串
+          echo "build_time=$(date +'%Y-%m-%d_%T')" >> $GITHUB_OUTPUT
+          # 获取短 Commit ID (前 7 位)
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          # 获取分支名
+          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
       - name: Compile
-        run: go build -o ${{ matrix.asset_name }} main.go
+        run: go build -ldflags "-X 'version.Version=${{ github.ref_name }}' -X 'version.BuildTime=${{ steps.meta.outputs.build_time }}' -X 'version.GitCommit=${{ steps.meta.outputs.short_sha }}' -X 'version.Branch=${{ steps.meta.outputs.branch }}'" -o ${{ matrix.asset_name }} main.go
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

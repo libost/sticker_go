@@ -12,6 +12,7 @@ import (
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/log"
 	"libost/sticker_go/utils"
+	V "libost/sticker_go/version"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -28,6 +29,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("reset", resetUsage))
 	dispatcher.AddHandler(handlers.NewCommand("clearcache", clearCache))
 	dispatcher.AddHandler(handlers.NewCommand("setcommands", setcommands))
+	dispatcher.AddHandler(handlers.NewCommand("about", about))
 }
 
 // start 处理器函数
@@ -276,5 +278,11 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, "命令列表已更新！", nil)
 	log.Log(fmt.Sprintf("User %d triggered /setcommands", ctx.EffectiveUser.Id), C.LogLevelInfo)
+	return err
+}
+
+func about(b *gotgbot.Bot, ctx *ext.Context) error {
+	_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("版本: %s\n构建时间: %s\nGit 提交: %s\n分支: %s", V.Version, V.BuildTime, V.GitCommit, V.Branch), nil)
+	log.Log(fmt.Sprintf("User %d triggered /about", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
