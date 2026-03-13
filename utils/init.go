@@ -1,0 +1,51 @@
+package utils
+
+import (
+	"fmt"
+	"os"
+
+	C "libost/sticker_go/constants"
+
+	"github.com/goccy/go-yaml"
+)
+
+func ConfigToYAML() error {
+	defaultConfig := C.DefaultConfig
+	defaultConfig.General.Limit = 100
+	defaultConfig.General.LimitPerPack = 100
+	defaultConfig.General.Adminkey = "123"
+	defaultConfig.Cache.Enabled = true
+	defaultConfig.Cache.ExpireHours = 1
+	defaultConfig.Cache.SizeLimitMB = 500
+	defaultConfig.Subscription.Enabled = false
+	defaultConfig.Subscription.Channel = ""
+	defaultConfig.Log.Level = "INFO"
+	defaultConfig.Log.ExpireDays = 7
+	defaultConfig.Subscription.Enabled = false
+	defaultConfig.Subscription.Channel = ""
+	defaultConfig.Webhook.Enabled = false
+	defaultConfig.Webhook.URL = ""
+	defaultConfig.Webhook.Port = 8080
+	defaultConfig.Webhook.Secret = ""
+	defaultConfig.Proxy.Enabled = false
+	defaultConfig.Proxy.Type = ""
+	defaultConfig.Proxy.Host = ""
+	defaultConfig.Proxy.Port = 0
+	defaultConfig.Proxy.Username = ""
+	defaultConfig.Proxy.Password = ""
+	defaultConfig.Misc.Timezone = "Asia/Shanghai"
+
+	yamlBytes, err := yaml.Marshal(defaultConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config to YAML: %v", err)
+	}
+	_, err = os.Create("./config.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to create config file: %v", err)
+	}
+	err = os.WriteFile("./config.yaml", yamlBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write config to file: %v", err)
+	}
+	return nil
+}

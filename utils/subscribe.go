@@ -87,15 +87,15 @@ func SubscribeCheck(b *gotgbot.Bot, uid int64) error {
 
 	switch response.Result.Status {
 	case "member", "administrator", "creator":
-		log.Log(fmt.Sprintf("User %d is subscribed to the channel", uid), C.LogLevelInfo)
+		log.Log(fmt.Sprintf("User %d is subscribed to the channel", uid), C.LogLevelDebug)
 		return nil
 	case "restricted":
 		if response.Result.IsMember {
-			log.Log(fmt.Sprintf("User %d is a restricted member of the channel", uid), C.LogLevelInfo)
+			log.Log(fmt.Sprintf("User %d is a restricted member of the channel", uid), C.LogLevelDebug)
 			return nil
 		}
 	}
-	log.Log(fmt.Sprintf("User %d is not subscribed to the channel", uid), C.LogLevelWarn)
+	log.Log(fmt.Sprintf("User %d is not subscribed to the channel", uid), C.LogLevelDebug)
 
 	return ErrUserNotSubscribed
 }

@@ -13,6 +13,7 @@ import (
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
+	"libost/sticker_go/log"
 	"libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -120,6 +121,12 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 	zipPaths, err := buildStickerPackZips(stickerSetName, filePaths)
 	if err != nil {
 		return nil, err
+	}
+	if !cf.Cache.Enabled {
+		for _, path := range filePaths {
+			os.Remove(path) // 如果缓存未启用，处理完成后删除文件
+			log.Log(fmt.Sprintf("Cache disabled, removed file: %s", path), C.LogLevelInfo)
+		}
 	}
 	usage := max(math.Ceil(float64(len(stickerSet.Stickers))/2)-1, 1) // 按照每 2 个贴纸计 1 次使用，向上取整，最后减去 1 次（因为第一次使用不计数）,最少计 1 次
 	database.Init("usageRecord", uid, map[string]any{"usage": usage})

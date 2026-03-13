@@ -3,8 +3,10 @@ package commands
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
 	"runtime/metrics"
+	"syscall"
 	"time"
 
 	"libost/sticker_go/config"
@@ -30,6 +32,8 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("clearcache", clearCache))
 	dispatcher.AddHandler(handlers.NewCommand("setcommands", setcommands))
 	dispatcher.AddHandler(handlers.NewCommand("about", about))
+	dispatcher.AddHandler(handlers.NewCommand("clearlogs", clearLogs))
+	dispatcher.AddHandler(handlers.NewCommand("restart", restart))
 }
 
 // start 处理器函数
@@ -329,4 +333,55 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	log.Log(fmt.Sprintf("User %d triggered /clearlogs", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
+}
+
+func restart(b *gotgbot.Bot, ctx *ext.Context) error {
+	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if !data["exists"].(bool) {
+		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		database.Init("create", ctx.EffectiveUser.Id, nil)
+		return err
+	}
+	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /restart without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		return err
+	}
+	_, err = ctx.EffectiveMessage.Reply(b, "正在重启机器人...", nil)
+	log.Log(fmt.Sprintf("User %d triggered /restart", ctx.EffectiveUser.Id), C.LogLevelWarn)
+	if err != nil {
+		return err
+	}
+	ops := runtime.GOOS
+	switch ops {
+	case "windows":
+		pathExe, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		cmd := exec.Command(pathExe, os.Args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		cmd.Env = os.Environ()
+		err = cmd.Start()
+		if err != nil {
+			return err
+		}
+		os.Exit(0)
+	case "linux", "darwin":
+		_, exists := os.LookupEnv("INVOCATION_ID")
+		if exists {
+			os.Exit(0)
+		} else {
+			pathExe, _ := os.Executable()
+			args := os.Args
+			env := os.Environ()
+			err = syscall.Exec(pathExe, args, env)
+		}
+	}
+	return nil
 }

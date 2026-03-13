@@ -186,6 +186,10 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		MessageId:   sentMsg.MessageId,
 		ReplyMarkup: inlineKeyboard,
 	})
+	if !cf.Cache.Enabled {
+		os.Remove(filePath) // 如果缓存未启用，处理完成后删除文件
+		log.Log(fmt.Sprintf("Cache disabled, removed file: %s", filePath), C.LogLevelInfo)
+	}
 	log.Log(fmt.Sprintf("User %d successfully processed sticker %s", ctx.EffectiveUser.Id, sticker.FileId), C.LogLevelInfo)
 	return nil
 }

@@ -9,7 +9,34 @@ import (
 	C "libost/sticker_go/constants"
 )
 
-func Log(message string, level string) {
+func Log(message string, level C.LogLevel) {
+	cf, err := config.Init()
+	if err != nil {
+		log.Printf("Failed to initialize config for logging: %v\n", err)
+		return
+	}
+	switch cf.Log.Level {
+	case "DEBUG":
+		if level.Number < C.LogLevelDebug.Number {
+			return // 当前日志级别不输出
+		}
+	case "INFO":
+		if level.Number < C.LogLevelInfo.Number {
+			return
+		}
+	case "WARN":
+		if level.Number < C.LogLevelWarn.Number {
+			return
+		}
+	case "ERROR":
+		if level.Number < C.LogLevelError.Number {
+			return
+		}
+	case "FATAL":
+		if level.Number < C.LogLevelFatal.Number {
+			return
+		}
+	}
 	logDir := C.LogDir
 	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
 	if os.IsNotExist(err) || (err == nil && !logInfo.IsDir()) {
@@ -23,9 +50,12 @@ func Log(message string, level string) {
 	if !isTimeRight {
 		incorrectTimeNotice = " (Current time may be incorrect due to timezone issues, check config)"
 	}
-	logMessage := fmt.Sprintf("[%s] [%s] %s%s\n", timestamp, level, message, incorrectTimeNotice)
+	logMessage := fmt.Sprintf("[%s] [%s] %s%s\n", timestamp, level.Level, message, incorrectTimeNotice)
 	logToFile(logMessage)
 	os.Stdout.WriteString(logMessage)
+	if level == C.LogLevelFatal {
+		os.Exit(1)
+	}
 }
 
 func logToFile(message string) {

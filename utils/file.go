@@ -21,3 +21,22 @@ func GetDirSize(path string) (int64, error) {
 	})
 	return size, err
 }
+
+func RemoveDirContents(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		entryPath := filepath.Join(dir, entry.Name())
+		if entry.IsDir() {
+			err = os.RemoveAll(entryPath)
+		} else {
+			err = os.Remove(entryPath)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

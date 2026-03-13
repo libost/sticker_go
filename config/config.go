@@ -17,15 +17,17 @@ type Config struct {
 		Adminkey     string `yaml:"adminkey" default:"123"`
 	} `yaml:"general,omitempty"`
 	Cache struct {
-		ExpireHours int `yaml:"expire_hours" default:"1"`
-		SizeLimitMB int `yaml:"size_limit_mb" default:"500"`
+		Enabled     bool `yaml:"enabled" default:"true"`
+		ExpireHours int  `yaml:"expire_hours" default:"1"`
+		SizeLimitMB int  `yaml:"size_limit_mb" default:"500"`
 	} `yaml:"cache,omitempty"`
 	Subscription struct {
 		Enabled bool   `yaml:"enabled" default:"false"`
 		Channel string `yaml:"channel,omitempty"`
 	} `yaml:"subscription,omitempty"`
 	Log struct {
-		ExpireDays int `yaml:"expire_days" default:"7"`
+		Level      string `yaml:"level" default:"INFO"`
+		ExpireDays int    `yaml:"expire_days" default:"7"`
 	} `yaml:"log,omitempty"`
 	Webhook struct {
 		Enabled bool   `yaml:"enabled" default:"false"`

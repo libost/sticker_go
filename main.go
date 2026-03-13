@@ -18,6 +18,8 @@ import (
 	"libost/sticker_go/database"
 	L "libost/sticker_go/log"
 	"libost/sticker_go/stickers"
+	"libost/sticker_go/utils"
+	V "libost/sticker_go/version"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -27,24 +29,29 @@ import (
 )
 
 func main() {
-	// 1. 创建 Bot 实例
+	args := os.Args
+	if len(args) > 1 && (args[1] == "version" || args[1] == "-v" || args[1] == "--version") {
+		fmt.Printf("Sticker Bot Version: %s\nBuild Time: %s\n", V.Version, V.BuildTime)
+		return
+	}
+	if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
+		L.Log("config.yaml not found, creating default config.yaml", C.LogLevelInfo)
+		_ = utils.ConfigToYAML()
+		L.Log("config.yaml not found, a default config.yaml has been created. Please edit it and restart the bot.", C.LogLevelFatal)
+	}
 	cfg, err := config.Init()
 	if err != nil {
 		L.Log(fmt.Sprintf("failed to initialize config: %v", err), C.LogLevelFatal)
-		log.Fatal(err)
 	}
 	if cfg == nil {
 		L.Log("config initialization returned nil config", C.LogLevelFatal)
-		log.Fatal("config initialization returned nil config")
 	}
 	if cfg.Subscription.Enabled && strings.TrimSpace(cfg.Subscription.Channel) == "" {
 		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelFatal)
-		log.Fatal("subscription check is enabled but channel is not set in config")
 	}
 	token := cfg.General.Token
 	if strings.TrimSpace(token) == "" || token == "YOUR_TOKEN_HERE" {
 		L.Log("config.yaml token is empty or still using the placeholder value", C.LogLevelFatal)
-		log.Fatal("config.yaml token is empty or still using the placeholder value")
 	}
 	httpClient := &http.Client{
 		Timeout: time.Second * 10,
@@ -74,12 +81,10 @@ func main() {
 	})
 	if err != nil {
 		L.Log(fmt.Sprintf("failed to create bot: %v", err), C.LogLevelFatal)
-		log.Fatal("failed to create bot")
 	}
 	_, err = database.Init("init", 0, nil) // 初始化数据库连接
 	if err != nil {
 		L.Log(fmt.Sprintf("failed to initialize database: %v", err), C.LogLevelFatal)
-		log.Fatal("failed to initialize database")
 	}
 	cacheDir := C.CacheDir
 	cacheInfo, err := os.Stat(cacheDir) // 检查缓存目录是否存在
@@ -87,7 +92,6 @@ func main() {
 		err = os.Mkdir(cacheDir, 0755)
 		if err != nil {
 			L.Log("failed to create cache directory", C.LogLevelFatal)
-			log.Fatal("failed to create cache directory: " + err.Error())
 		}
 	}
 	// 定时清理缓存目录中的过期文件
@@ -105,7 +109,6 @@ func main() {
 	err = cmd.Run() // 检查 ffmpeg 是否可用
 	if err != nil {
 		L.Log(fmt.Sprintf("ffmpeg is not installed or not in PATH: %v", err), C.LogLevelFatal)
-		log.Fatal("ffmpeg is not installed or not in PATH")
 	}
 	logDir := C.LogDir
 	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
@@ -117,15 +120,20 @@ func main() {
 		}
 	}
 	// 定时清理日志目录中的过期文件
-	go func() {
-		// 立即执行一次
-		clearLogs(logDir, cfg)
-		// 之后每天检查一次
-		ticker := time.NewTicker(24 * time.Hour)
-		for range ticker.C {
+	if cfg.Cache.Enabled {
+		go func() {
+			// 立即执行一次
 			clearLogs(logDir, cfg)
-		}
-	}()
+			// 之后每天检查一次
+			ticker := time.NewTicker(24 * time.Hour)
+			for range ticker.C {
+				clearLogs(logDir, cfg)
+			}
+		}()
+	} else {
+		L.Log("cache is disabled, cleanup cachedir", C.LogLevelInfo)
+		_ = utils.RemoveDirContents(cacheDir)
+	}
 
 	// 2. 创建分发器 (Dispatcher)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
@@ -183,7 +191,7 @@ func main() {
 		}
 	}
 
-	logText := fmt.Sprintf("%s has started...", b.User.Username)
+	logText := fmt.Sprintf("%s has started. Log Level: %s", b.User.Username, cfg.Log.Level)
 	L.Log(logText, C.LogLevelInfo)
 	updater.Idle() // 阻塞直到进程被关闭
 }
