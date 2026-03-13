@@ -2,13 +2,16 @@ package database
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+//go:embed schema.sql
+var schemaFS embed.FS
 
 var (
 	db     *sql.DB
@@ -54,7 +57,7 @@ func getDB() (*sql.DB, error) {
 			return
 		}
 
-		schema, err := os.ReadFile("./schema.sql")
+		schema, err := schemaFS.ReadFile("schema.sql")
 		if err != nil {
 			dbErr = err
 			return
