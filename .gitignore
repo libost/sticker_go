@@ -2,6 +2,7 @@ sticker_go
 sticker_go*
 cache/
 logs/
+.vscode/
 sticker_go.db
 config.yaml
 *.exe
