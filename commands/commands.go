@@ -328,7 +328,7 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		},
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "真的要清除日志吗？", &gotgbot.SendMessageOpts{
+	_, err = ctx.EffectiveMessage.Reply(b, "真的要清除日志吗？\n此操作不可逆！", &gotgbot.SendMessageOpts{
 		ReplyMarkup: inlineKeyboard,
 	})
 	log.Log(fmt.Sprintf("User %d triggered /clearlogs", ctx.EffectiveUser.Id), C.LogLevelInfo)

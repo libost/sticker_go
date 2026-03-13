@@ -15,6 +15,7 @@ type Config struct {
 		Limit        int    `yaml:"limit" default:"100"`
 		LimitPerPack int    `yaml:"limit_per_pack" default:"100"`
 		Adminkey     string `yaml:"adminkey" default:"123"`
+		TgsSupport   bool   `yaml:"tgs_support" default:"false"` // 是否支持 .tgs 动画贴纸，默认是 false，启用后会将 .tgs 动画贴纸转换为 GIF 格式发送，禁用后将直接发送原始 .tgs 文件
 	} `yaml:"general,omitempty"`
 	Cache struct {
 		Enabled     bool `yaml:"enabled" default:"true"`

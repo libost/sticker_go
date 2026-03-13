@@ -2,6 +2,7 @@ package stickers
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -55,7 +56,11 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 		var fileExt, fileExtConverted string
 		switch {
 		case sticker.IsAnimated:
-			fileExt, fileExtConverted = ".tgs", ".tgs"
+			if cf.General.TgsSupport {
+				fileExt, fileExtConverted = ".tgs", ".gif"
+			} else {
+				fileExt, fileExtConverted = ".tgs", ".tgs"
+			}
 		case sticker.IsVideo:
 			fileExt, fileExtConverted = ".webm", ".gif"
 		default:
@@ -108,11 +113,23 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 				return nil, err
 			}
 		default:
-			convertedPath = rawPath
+			if cf.General.TgsSupport {
+				convertedPath, err = utils.DecodeTgsToGIF(rawPath)
+				if err != nil {
+					if errors.Is(err, utils.ErrTgsConversionUnsupported) {
+						convertedPath = rawPath
+						log.Log(fmt.Sprintf("TGS->GIF unsupported for %s, fallback to original TGS", sticker.FileId), C.LogLevelWarn)
+					} else {
+						return nil, err
+					}
+				}
+			} else {
+				convertedPath = rawPath
+			}
 		}
 
-		// 转换后删除原始文件（tgs 不转换，直接保留）
-		if fileExt != fileExtConverted {
+		// 仅在转换输出不是原始文件时删除原始文件。
+		if convertedPath != rawPath {
 			os.Remove(rawPath)
 		}
 
