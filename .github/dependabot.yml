@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"  # 指定使用 Go 模块（gomod）生态系统
+    directory: "/"              # go.mod 文件所在的目录
+    schedule:
+      interval: "weekly"        # 检查更新的频率（daily, weekly, monthly）
+      day: "monday"             # 每周检查更新的具体日期（仅当 interval 是 weekly 时有效）
+    open-pull-requests-limit: 1  # 同时打开的 PR 数量
