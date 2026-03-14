@@ -141,11 +141,11 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		filePaths = append(filePaths, convertedPath)
 	}
 	if tgsContained && cf.General.TgsSupport {
-		err = utils.DecodeTgsToGIF(C.CacheDir)
 		_, _, _ = b.EditMessageText("正在转换 TGS 贴纸...", &gotgbot.EditMessageTextOpts{
 			ChatId:    uid,
 			MessageId: messageId,
 		})
+		err = utils.DecodeTgsToGIF(C.CacheDir)
 		if err != nil {
 			if errors.Is(err, utils.ErrTgsConversionUnsupported) {
 				for _, fileID := range tgsFileIDs {
