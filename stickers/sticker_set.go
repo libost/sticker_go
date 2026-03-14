@@ -155,6 +155,13 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 					_ = os.Remove(tgsFile)
 				}
 			}
+			pattern := filepath.Join(C.CacheDir, "*.json")
+			jsonFiles, globErr := filepath.Glob(pattern)
+			if globErr == nil {
+				for _, jsonFile := range jsonFiles {
+					_ = os.Remove(jsonFile)
+				}
+			}
 			log.Log("Successfully converted TGS stickers to GIF format", C.LogLevelInfo)
 		}
 

@@ -176,6 +176,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				}
 			} else {
 				filePath = C.CacheDir + sticker.FileId + ".tgs" + ".gif"
+				os.Remove(C.CacheDir + sticker.FileId + ".json")
 				log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
 			}
 		} else {
