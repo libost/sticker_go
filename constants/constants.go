@@ -42,10 +42,11 @@ var DefaultConfig struct {
 		ExpireDays int    `yaml:"expire_days"`
 	} `yaml:"log,omitempty"`
 	Webhook struct {
-		Enabled bool   `yaml:"enabled"`
-		URL     string `yaml:"url,omitempty"`
-		Port    int    `yaml:"port"`
-		Secret  string `yaml:"secret,omitempty"`
+		Enabled      bool   `yaml:"enabled"`
+		NginxEnabled bool   `yaml:"nginx_enabled"`
+		URL          string `yaml:"url,omitempty"`
+		Port         int    `yaml:"port"`
+		Secret       string `yaml:"secret,omitempty"`
 	} `yaml:"webhook,omitempty"`
 	Proxy struct {
 		Enabled  bool   `yaml:"enabled"`

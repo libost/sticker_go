@@ -24,6 +24,7 @@ func ConfigToYAML() error {
 	defaultConfig.Subscription.Enabled = false
 	defaultConfig.Subscription.Channel = ""
 	defaultConfig.Webhook.Enabled = false
+	defaultConfig.Webhook.NginxEnabled = false
 	defaultConfig.Webhook.URL = ""
 	defaultConfig.Webhook.Port = 8080
 	defaultConfig.Webhook.Secret = ""
