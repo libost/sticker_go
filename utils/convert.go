@@ -14,7 +14,7 @@ import (
 	"golang.org/x/image/webp"
 )
 
-var ErrTgsConversionUnsupported = errors.New("tgs conversion unsupported by current ffmpeg build")
+var ErrTgsConversionUnsupported = errors.New("tgs conversion unsupported by current Docker-based converter")
 
 func DecodeWebPToPNG(fileId string) (filePath string, err error) {
 	f, err := os.Open(C.CacheDir + fileId + ".webp")
