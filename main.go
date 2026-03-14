@@ -110,6 +110,16 @@ func main() {
 	if err != nil {
 		L.Log(fmt.Sprintf("ffmpeg is not installed or not in PATH: %v", err), C.LogLevelFatal)
 	}
+	if cfg.General.TgsSupport {
+		cmd = exec.Command("docker", "images", "-q", "edasriyan/lottie-to-gif")
+		output, err := cmd.Output() // 检查 Docker 镜像是否可用
+		if err != nil {
+			L.Log(fmt.Sprintf("Docker is not installed or 'edasriyan/lottie-to-gif' image is not available: %v", err), C.LogLevelFatal)
+		}
+		if len(strings.TrimSpace(string(output))) == 0 {
+			L.Log("Docker image 'edasriyan/lottie-to-gif' is not available", C.LogLevelFatal)
+		}
+	}
 	logDir := C.LogDir
 	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
 	if os.IsNotExist(err) || (err == nil && !logInfo.IsDir()) {
@@ -135,7 +145,7 @@ func main() {
 		_ = utils.RemoveDirContents(cacheDir)
 	}
 
-	// 2. 创建分发器 (Dispatcher)
+	// 创建分发器 (Dispatcher)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
 		Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
 			L.Log(fmt.Sprintf("发生错误: %v", err), C.LogLevelError)
@@ -144,29 +154,41 @@ func main() {
 		MaxRoutines: ext.DefaultMaxRoutines,
 	})
 
-	// 3. 创建更新器 (Updater) 关联分发器
+	// 创建更新器 (Updater) 关联分发器
 	updater := ext.NewUpdater(dispatcher, nil)
 
-	// 4. 添加处理器 (Handler)
+	// 添加处理器 (Handler)
 	commands.AddHandlers(dispatcher)
 	stickers.AddHandlers(dispatcher)
 	callback.AddHandlers(dispatcher)
 
-	// 5. 启动 Bot
+	// 启动 Bot
 	if cfg.Webhook.Enabled {
+		webhookURL, err := url.Parse(cfg.Webhook.URL)
+		if err != nil || webhookURL.Scheme == "" || webhookURL.Host == "" {
+			L.Log(fmt.Sprintf("invalid webhook url: %q", cfg.Webhook.URL), C.LogLevelFatal)
+		}
+		if webhookURL.Path == "" || webhookURL.Path == "/" {
+			L.Log("webhook url path is empty, please set a path like /webhook", C.LogLevelFatal)
+		}
+
 		// 启动 Webhook 服务器
 		listenaddr := fmt.Sprintf("0.0.0.0:%d", cfg.Webhook.Port)
+		if cfg.Webhook.NginxEnabled {
+			// 如果启用了 Nginx 反向代理，监听本地回环地址
+			listenaddr = fmt.Sprintf("127.0.0.1:%d", cfg.Webhook.Port)
+		}
 		webhookOpts := ext.WebhookOpts{
 			ListenAddr:  listenaddr,         // 本地监听端口
-			SecretToken: cfg.Webhook.Secret, // 建议设置，防止他人恶意请求你的接口
+			SecretToken: cfg.Webhook.Secret, // Webhook 密钥
 		}
-		err := updater.StartWebhook(b, cfg.Webhook.URL, webhookOpts)
+		err = updater.StartWebhook(b, webhookURL.Path, webhookOpts)
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to start webhook: %v", err), C.LogLevelFatal)
 			panic("failed to start webhook: " + err.Error())
 		}
 
-		// 5. 设置 Telegram 的 Webhook URL (这一步会发请求给 Telegram 告知地址)
+		// 设置 Telegram 的 Webhook URL
 		_, err = b.SetWebhook(cfg.Webhook.URL, &gotgbot.SetWebhookOpts{
 			SecretToken:        webhookOpts.SecretToken,
 			DropPendingUpdates: true,
@@ -190,8 +212,13 @@ func main() {
 			panic("failed to start polling: " + err.Error())
 		}
 	}
-
-	logText := fmt.Sprintf("%s has started. Log Level: %s", b.User.Username, cfg.Log.Level)
+	var communicationMethod string
+	if cfg.Webhook.Enabled {
+		communicationMethod = "Webhook"
+	} else {
+		communicationMethod = "Polling"
+	}
+	logText := fmt.Sprintf("%s has started with %s enabled. Log Level: %s", b.User.Username, communicationMethod, cfg.Log.Level)
 	L.Log(logText, C.LogLevelInfo)
 	updater.Idle() // 阻塞直到进程被关闭
 }

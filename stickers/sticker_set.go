@@ -2,6 +2,7 @@ package stickers
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -36,7 +37,7 @@ func (e *StickerPackLimitError) Error() string {
 
 // GetStickerPack 下载贴纸包中所有贴纸并按 50MB 限制打包后返回本地 zip 路径列表。
 // 已缓存的贴纸会直接复用，无需重新下载。
-func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string, error) {
+func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId int64) ([]string, error) {
 	stickerSet, err := b.GetStickerSet(stickerSetName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sticker set: %v", err)
@@ -51,15 +52,30 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 	}
 
 	var filePaths []string
+	tgsContained := false
+	tgsFileIDs := make([]string, 0)
+	progressNow := 0
 	for _, sticker := range stickerSet.Stickers {
 		var fileExt, fileExtConverted string
 		switch {
 		case sticker.IsAnimated:
-			fileExt, fileExtConverted = ".tgs", ".tgs"
+			if cf.General.TgsSupport {
+				fileExt, fileExtConverted = ".tgs", ".gif"
+			} else {
+				fileExt, fileExtConverted = ".tgs", ".tgs"
+			}
 		case sticker.IsVideo:
 			fileExt, fileExtConverted = ".webm", ".gif"
 		default:
 			fileExt, fileExtConverted = ".webp", ".png"
+		}
+		progressNow++
+		if progressNow == 1 || progressNow%5 == 0 || progressNow == packLength {
+			_, _, err = b.EditMessageText(fmt.Sprintf("正在处理贴纸包 %s... \n进度(%d/%d)", stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
+				ChatId:    uid,
+				MessageId: messageId,
+			})
+
 		}
 
 		// 优先使用缓存
@@ -108,15 +124,60 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 				return nil, err
 			}
 		default:
-			convertedPath = rawPath
+			tgsContained = true
+			if cf.General.TgsSupport {
+				convertedPath = C.CacheDir + sticker.FileId + ".tgs" + ".gif"
+				tgsFileIDs = append(tgsFileIDs, sticker.FileId)
+			} else {
+				convertedPath = rawPath
+			}
 		}
 
-		// 转换后删除原始文件（tgs 不转换，直接保留）
-		if fileExt != fileExtConverted {
+		// 仅在转换输出不是原始文件时删除原始文件。
+		if convertedPath != rawPath && fileExt != ".tgs" {
 			os.Remove(rawPath)
 		}
 
 		filePaths = append(filePaths, convertedPath)
+	}
+	if tgsContained && cf.General.TgsSupport {
+		_, _, _ = b.EditMessageText("正在转换 TGS 贴纸...", &gotgbot.EditMessageTextOpts{
+			ChatId:    uid,
+			MessageId: messageId,
+		})
+		err = utils.DecodeTgsToGIF(C.CacheDir)
+		if err != nil {
+			if errors.Is(err, utils.ErrTgsConversionUnsupported) {
+				for _, fileID := range tgsFileIDs {
+					gifPath := C.CacheDir + fileID + ".tgs" + ".gif"
+					tgsPath := C.CacheDir + fileID + ".tgs"
+					for i := range filePaths {
+						if filePaths[i] == gifPath {
+							filePaths[i] = tgsPath
+						}
+					}
+				}
+				log.Log("TGS->GIF conversion is unsupported in this environment, keeping original TGS files for any animated stickers", C.LogLevelWarn)
+			} else {
+				return nil, fmt.Errorf("failed to convert TGS to GIF: %v", err)
+			}
+		} else {
+			tgsFiles, globErr := filepath.Glob(filepath.Join(C.CacheDir, "*.tgs"))
+			if globErr == nil {
+				for _, tgsFile := range tgsFiles {
+					_ = os.Remove(tgsFile)
+				}
+			}
+			pattern := filepath.Join(C.CacheDir, "*.json")
+			jsonFiles, globErr := filepath.Glob(pattern)
+			if globErr == nil {
+				for _, jsonFile := range jsonFiles {
+					_ = os.Remove(jsonFile)
+				}
+			}
+			log.Log("Successfully converted TGS stickers to GIF format", C.LogLevelInfo)
+		}
+
 	}
 	zipPaths, err := buildStickerPackZips(stickerSetName, filePaths)
 	if err != nil {

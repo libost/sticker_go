@@ -81,7 +81,12 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var fileExtConverted string
 	switch true {
 	case sticker.IsAnimated:
-		fileExt, fileExtConverted = ".tgs", ".tgs"
+		fileExt = ".tgs"
+		if cf.General.TgsSupport {
+			fileExtConverted = ".gif"
+		} else {
+			fileExtConverted = ".tgs"
+		}
 	case sticker.IsVideo:
 		// 处理视频贴纸
 		fileExt = ".webm"
@@ -91,7 +96,15 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		fileExt = ".webp"
 		fileExtConverted = ".png"
 	}
-	_, err = os.Stat(C.CacheDir + sticker.FileId + fileExtConverted)
+	var cachefilePath string
+	if fileExt == ".tgs" && cf.General.TgsSupport {
+		// 对于 TGS 文件，如果启用了 TGS 支持，先检查转换后的 GIF 是否存在
+		cachefilePath = C.CacheDir + sticker.FileId + fileExt + fileExtConverted
+	} else {
+		// 对于其他文件类型，直接使用原始文件路径
+		cachefilePath = C.CacheDir + sticker.FileId + fileExtConverted
+	}
+	_, err = os.Stat(cachefilePath)
 	inlineKeyboard := gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
@@ -105,9 +118,8 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	}
 	if err == nil {
-		log.Log(fmt.Sprintf("Sticker cached: %s", C.CacheDir+sticker.FileId+fileExtConverted), C.LogLevelInfo)
-		fmt.Printf("Sticker cached: %s\n", C.CacheDir+sticker.FileId+fileExtConverted)
-		fileExist, err := os.Open(C.CacheDir + sticker.FileId + fileExtConverted)
+		log.Log(fmt.Sprintf("Sticker cached: %s", cachefilePath), C.LogLevelInfo)
+		fileExist, err := os.Open(cachefilePath)
 		if err != nil {
 			return err
 		}
@@ -153,22 +165,34 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		log.Log(fmt.Sprintf("Sticker saved as PNG: %s", filePath), C.LogLevelInfo)
-		fmt.Printf("Sticker saved as PNG: %s\n", filePath)
 	case ".webm":
 		filePath, err = utils.DecodeWebMToGIF(sticker.FileId)
 		if err != nil {
 			return err
 		}
 		log.Log(fmt.Sprintf("Video sticker saved as GIF: %s", filePath), C.LogLevelInfo)
-		fmt.Printf("Video sticker saved as GIF: %s\n", filePath)
 	default:
-		// .tgs 动画贴纸：直接发送原始文件
-		filePath = C.CacheDir + sticker.FileId + fileExt
-		log.Log(fmt.Sprintf("Animated sticker uses its original file: %s", filePath), C.LogLevelInfo)
-		fmt.Printf("Animated sticker saved: %s\n", filePath)
+		if cf.General.TgsSupport {
+			err = utils.DecodeTgsToGIF(C.CacheDir)
+			if err != nil {
+				if errors.Is(err, utils.ErrTgsConversionUnsupported) {
+					filePath = C.CacheDir + sticker.FileId + ".tgs"
+					log.Log(fmt.Sprintf("TGS->GIF unsupported for %s, fallback to original TGS: %s", sticker.FileId, filePath), C.LogLevelWarn)
+				} else {
+					return err
+				}
+			} else {
+				filePath = C.CacheDir + sticker.FileId + ".tgs" + ".gif"
+				os.Remove(C.CacheDir + sticker.FileId + ".json")
+				log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
+			}
+		} else {
+			filePath = C.CacheDir + sticker.FileId + fileExt
+			log.Log(fmt.Sprintf("Animated sticker uses its original file: %s", filePath), C.LogLevelInfo)
+		}
 	}
-	// 仅在已转换格式时删除原始文件（.tgs 直接发送，无需删除）
-	if fileExt != fileExtConverted {
+	// 仅在转换输出不是原始文件时删除原始文件。
+	if filePath != C.CacheDir+sticker.FileId+fileExt {
 		os.Remove(C.CacheDir + sticker.FileId + fileExt)
 	}
 	fileSend, err := os.Open(filePath)

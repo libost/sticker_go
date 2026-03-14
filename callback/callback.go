@@ -113,7 +113,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	log.Log(fmt.Sprintf("User %d triggered getPackHandler for pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
 
-	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id)
+	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, ctx.CallbackQuery.Message.GetMessageId())
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {
 		msg := fmt.Sprintf("贴纸包包含 %d 张贴纸，超过每包限制的 %d 张。", limitErr.PackLength, limitErr.Limit)

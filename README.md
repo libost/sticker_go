@@ -1,4 +1,9 @@
 # Sticker Bot by libost
+## 前置条件
+- Go 1.25 或更高版本 （二进制文件不需要）
+- Docker（仅当启用 TGS 支持时需要）
+- Docker 镜像 `edasriyan/lottie-to-gif`（仅当启用 TGS 支持时需要）
+- FFmpeg
 ## 使用方式
 1. 克隆仓库并进入目录
 ```bash

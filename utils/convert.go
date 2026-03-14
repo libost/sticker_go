@@ -1,14 +1,20 @@
 package utils
 
 import (
+	"errors"
+	"fmt"
 	"image/png"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	C "libost/sticker_go/constants"
 
 	"golang.org/x/image/webp"
 )
+
+var ErrTgsConversionUnsupported = errors.New("tgs conversion unsupported by current Docker-based converter")
 
 func DecodeWebPToPNG(fileId string) (filePath string, err error) {
 	f, err := os.Open(C.CacheDir + fileId + ".webp")
@@ -44,28 +50,29 @@ func DecodeWebMToGIF(fileId string) (filePath string, err error) {
 	return C.CacheDir + fileId + ".gif", nil
 }
 
-/*
-func DecodeTgsToGif(fileId string) (filePath string, err error) {
-	// 这里需要使用第三方库来处理 TGS 动画贴纸并转换为 GIF
-	// 例如，可以使用 lottie-web 或者其他工具来完成这个任务
-	// 1. 准备 FFmpeg 命令，设置输入为管道
-	cmd := exec.Command("ffmpeg",
-    	"-f", "image2pipe",     // 输入格式为图像流
-    	"-vcodec", "png",       // 或者 rawvideo
-    	"-i", "-",              // 从 Stdin 读取
-    	"-vf", "split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse", // FFmpeg 经典的生成高质量 GIF 的滤镜
-    	C.CacheDir+fileId+".gif",
-	)
-
-	stdin, _ := cmd.StdinPipe()
-	cmd.Start()
-
-	// 2. 循环渲染帧并写入管道
-	for i := 0; i < totalFrames; i++ {
-    	rgbaImg := renderFrame(i) // 使用 rlottie 渲染一帧
-    	png.Encode(stdin, rgbaImg) // 将帧以 PNG 格式写入 FFmpeg 管道
+func DecodeTgsToGIF(dir string) error {
+	absPath, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+	args := []string{
+		"run", "--rm",
+		"-v", fmt.Sprintf("%s:/source", absPath),
+		"edasriyan/lottie-to-gif",
+	}
+	cmd := exec.Command("docker", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		trimmedOutput := strings.TrimSpace(string(output))
+		lowerOutput := strings.ToLower(trimmedOutput)
+		if strings.Contains(lowerOutput, "unsupported") || strings.Contains(lowerOutput, "not supported") {
+			return fmt.Errorf("%w: %s", ErrTgsConversionUnsupported, trimmedOutput)
+		}
+		if trimmedOutput == "" {
+			return fmt.Errorf("failed to run docker command: %w", err)
+		}
+		return fmt.Errorf("failed to run docker command: %w, output: %s", err, trimmedOutput)
 	}
 
-	stdin.Close()
-	cmd.Wait()
-}*/
+	return nil
+}
