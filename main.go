@@ -154,6 +154,14 @@ func main() {
 
 	// 5. 启动 Bot
 	if cfg.Webhook.Enabled {
+		webhookURL, err := url.Parse(cfg.Webhook.URL)
+		if err != nil || webhookURL.Scheme == "" || webhookURL.Host == "" {
+			L.Log(fmt.Sprintf("invalid webhook url: %q", cfg.Webhook.URL), C.LogLevelFatal)
+		}
+		if webhookURL.Path == "" || webhookURL.Path == "/" {
+			L.Log("webhook url path is empty, please set a path like /webhook", C.LogLevelFatal)
+		}
+
 		// 启动 Webhook 服务器
 		listenaddr := fmt.Sprintf("0.0.0.0:%d", cfg.Webhook.Port)
 		if cfg.Webhook.NginxEnabled {
@@ -164,7 +172,7 @@ func main() {
 			ListenAddr:  listenaddr,         // 本地监听端口
 			SecretToken: cfg.Webhook.Secret, // 建议设置，防止他人恶意请求你的接口
 		}
-		err := updater.StartWebhook(b, cfg.Webhook.URL, webhookOpts)
+		err = updater.StartWebhook(b, webhookURL.Path, webhookOpts)
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to start webhook: %v", err), C.LogLevelFatal)
 			panic("failed to start webhook: " + err.Error())
