@@ -156,6 +156,10 @@ func main() {
 	if cfg.Webhook.Enabled {
 		// 启动 Webhook 服务器
 		listenaddr := fmt.Sprintf("0.0.0.0:%d", cfg.Webhook.Port)
+		if cfg.Webhook.NginxEnabled {
+			// 如果启用了 Nginx 反向代理，监听本地回环地址
+			listenaddr = fmt.Sprintf("127.0.0.1:%d", cfg.Webhook.Port)
+		}
 		webhookOpts := ext.WebhookOpts{
 			ListenAddr:  listenaddr,         // 本地监听端口
 			SecretToken: cfg.Webhook.Secret, // 建议设置，防止他人恶意请求你的接口

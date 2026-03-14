@@ -30,10 +30,11 @@ type Config struct {
 		ExpireDays int    `yaml:"expire_days" default:"7"`
 	} `yaml:"log,omitempty"`
 	Webhook struct {
-		Enabled bool   `yaml:"enabled" default:"false"`
-		URL     string `yaml:"url,omitempty"`
-		Port    int    `yaml:"port" default:"8080"`
-		Secret  string `yaml:"secret,omitempty"`
+		Enabled      bool   `yaml:"enabled" default:"false"`
+		NginxEnabled bool   `yaml:"nginx_enabled" default:"false"`
+		URL          string `yaml:"url,omitempty"`
+		Port         int    `yaml:"port" default:"8080"`
+		Secret       string `yaml:"secret,omitempty"`
 	} `yaml:"webhook,omitempty"`
 	Proxy struct {
 		Enabled  bool   `yaml:"enabled" default:"false"`
