@@ -175,9 +175,13 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				if errors.Is(err, utils.ErrTgsConversionUnsupported) {
 					filePath = C.CacheDir + sticker.FileId + ".tgs"
 					log.Log(fmt.Sprintf("TGS->GIF unsupported for %s, fallback to original TGS: %s", sticker.FileId, filePath), C.LogLevelWarn)
+				} else {
+					return err
 				}
+			} else {
+				filePath = C.CacheDir + sticker.FileId + ".gif"
+				log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
 			}
-			log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
 		} else {
 			filePath = C.CacheDir + sticker.FileId + fileExt
 			log.Log(fmt.Sprintf("Animated sticker uses its original file: %s", filePath), C.LogLevelInfo)

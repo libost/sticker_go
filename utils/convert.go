@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	C "libost/sticker_go/constants"
 
@@ -62,9 +63,17 @@ func DecodeTgsToGIF(dir string) error {
 		"edasriyan/lottie-to-gif",
 	}
 	cmd := exec.Command("docker", args...)
-	err = cmd.Run()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to run docker command: %w", err)
+		trimmedOutput := strings.TrimSpace(string(output))
+		lowerOutput := strings.ToLower(trimmedOutput)
+		if strings.Contains(lowerOutput, "unsupported") || strings.Contains(lowerOutput, "not supported") {
+			return fmt.Errorf("%w: %s", ErrTgsConversionUnsupported, trimmedOutput)
+		}
+		if trimmedOutput == "" {
+			return fmt.Errorf("failed to run docker command: %w", err)
+		}
+		return fmt.Errorf("failed to run docker command: %w, output: %s", err, trimmedOutput)
 	}
 
 	return nil
