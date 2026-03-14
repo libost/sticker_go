@@ -8,7 +8,7 @@ require github.com/goccy/go-yaml v1.19.2
 
 require (
 	github.com/creasty/defaults v1.8.0
-	golang.org/x/image v0.36.0
+	golang.org/x/image v0.37.0
 	golang.org/x/net v0.52.0
 	modernc.org/sqlite v1.46.1
 )
