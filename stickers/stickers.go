@@ -96,7 +96,15 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		fileExt = ".webp"
 		fileExtConverted = ".png"
 	}
-	_, err = os.Stat(C.CacheDir + sticker.FileId + fileExtConverted)
+	var cachefilePath string
+	if fileExt == ".tgs" && cf.General.TgsSupport {
+		// 对于 TGS 文件，如果启用了 TGS 支持，先检查转换后的 GIF 是否存在
+		cachefilePath = C.CacheDir + sticker.FileId + fileExt + fileExtConverted
+	} else {
+		// 对于其他文件类型，直接使用原始文件路径
+		cachefilePath = C.CacheDir + sticker.FileId + fileExtConverted
+	}
+	_, err = os.Stat(cachefilePath)
 	inlineKeyboard := gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
@@ -110,9 +118,8 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		},
 	}
 	if err == nil {
-		log.Log(fmt.Sprintf("Sticker cached: %s", C.CacheDir+sticker.FileId+fileExtConverted), C.LogLevelInfo)
-		fmt.Printf("Sticker cached: %s\n", C.CacheDir+sticker.FileId+fileExtConverted)
-		fileExist, err := os.Open(C.CacheDir + sticker.FileId + fileExtConverted)
+		log.Log(fmt.Sprintf("Sticker cached: %s", cachefilePath), C.LogLevelInfo)
+		fileExist, err := os.Open(cachefilePath)
 		if err != nil {
 			return err
 		}
