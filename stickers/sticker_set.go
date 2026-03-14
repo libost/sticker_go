@@ -37,7 +37,7 @@ func (e *StickerPackLimitError) Error() string {
 
 // GetStickerPack 下载贴纸包中所有贴纸并按 50MB 限制打包后返回本地 zip 路径列表。
 // 已缓存的贴纸会直接复用，无需重新下载。
-func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string, error) {
+func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId int64) ([]string, error) {
 	stickerSet, err := b.GetStickerSet(stickerSetName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sticker set: %v", err)
@@ -54,6 +54,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 	var filePaths []string
 	tgsContained := false
 	tgsFileIDs := make([]string, 0)
+	progressNow := 0
 	for _, sticker := range stickerSet.Stickers {
 		var fileExt, fileExtConverted string
 		switch {
@@ -67,6 +68,14 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 			fileExt, fileExtConverted = ".webm", ".gif"
 		default:
 			fileExt, fileExtConverted = ".webp", ".png"
+		}
+		progressNow++
+		if progressNow == 1 || progressNow%5 == 0 || progressNow == packLength {
+			_, _, err = b.EditMessageText(fmt.Sprintf("正在处理贴纸包 %s... \n进度(%d/%d)", stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
+				ChatId:    uid,
+				MessageId: messageId,
+			})
+
 		}
 
 		// 优先使用缓存
@@ -133,6 +142,10 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 	}
 	if tgsContained && cf.General.TgsSupport {
 		err = utils.DecodeTgsToGIF(C.CacheDir)
+		_, _, _ = b.EditMessageText("正在转换 TGS 贴纸...", &gotgbot.EditMessageTextOpts{
+			ChatId:    uid,
+			MessageId: messageId,
+		})
 		if err != nil {
 			if errors.Is(err, utils.ErrTgsConversionUnsupported) {
 				for _, fileID := range tgsFileIDs {
