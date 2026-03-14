@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	C "libost/sticker_go/constants"
 
@@ -53,50 +51,27 @@ func DecodeWebMToGIF(fileId string) (filePath string, err error) {
 	return C.CacheDir + fileId + ".gif", nil
 }
 
-func DecodeTgsToGIF(filePath string) (string, error) {
-	outputFilePath := strings.TrimSuffix(filePath, filepath.Ext(filePath)) + ".gif"
-
-	// Try direct conversion first. Some ffmpeg builds can decode .tgs directly.
-	directErr := runFFmpeg([]string{
-		"-v", "error",
-		"-y",
-		"-i", filePath,
-		"-vf", "fps=24,scale=512:512:flags=lanczos:force_original_aspect_ratio=decrease",
-		"-loop", "0",
-		outputFilePath,
-	})
-	if directErr == nil {
-		return outputFilePath, nil
+func DecodeTgsToGIF(dir string) error {
+	absPath, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+	args := []string{
+		"run", "--rm",
+		"-v", fmt.Sprintf("%s:/source", absPath),
+		"edasriyan/lottie-to-gif",
+	}
+	cmd := exec.Command("docker", args...)
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run docker command: %w", err)
 	}
 
-	// Fallback for ffmpeg builds that require lottie JSON input.
-	jsonFilePath := strings.TrimSuffix(filePath, ".tgs") + ".json"
-	if err := extractTgsJSON(filePath, jsonFilePath); err != nil {
-		return "", fmt.Errorf("failed to extract tgs json: %w", err)
-	}
-	defer os.Remove(jsonFilePath)
-
-	jsonErr := runFFmpeg([]string{
-		"-v", "error",
-		"-y",
-		"-f", "lottie",
-		"-i", jsonFilePath,
-		"-vf", "fps=24,scale=512:512:flags=lanczos:force_original_aspect_ratio=decrease",
-		"-loop", "0",
-		outputFilePath,
-	})
-	if jsonErr != nil {
-		if strings.Contains(strings.ToLower(jsonErr.Error()), "unknown input format: 'lottie'") {
-			return "", fmt.Errorf("%w: %v", ErrTgsConversionUnsupported, jsonErr)
-		}
-		return "", fmt.Errorf("failed to convert tgs to gif: direct=%v; lottie=%v; hint=install ffmpeg with lottie support or set general.tgs_support=false", directErr, jsonErr)
-	}
-
-	return outputFilePath, nil
+	return nil
 }
 
-func extractTgsJSON(tgsPath string, jsonPath string) error {
-	tgsFile, err := os.Open(tgsPath)
+func ExtractTgsJSON(fileid string) error {
+	tgsFile, err := os.Open(C.CacheDir + fileid + ".tgs")
 	if err != nil {
 		return err
 	}
@@ -108,7 +83,7 @@ func extractTgsJSON(tgsPath string, jsonPath string) error {
 	}
 	defer gzipReader.Close()
 
-	jsonFile, err := os.Create(jsonPath)
+	jsonFile, err := os.Create(C.CacheDir + fileid + ".json")
 	if err != nil {
 		return err
 	}
@@ -116,18 +91,4 @@ func extractTgsJSON(tgsPath string, jsonPath string) error {
 
 	_, err = io.Copy(jsonFile, gzipReader)
 	return err
-}
-
-func runFFmpeg(args []string) error {
-	cmd := exec.Command("ffmpeg", args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			return err
-		}
-		return fmt.Errorf("%w: %s", err, msg)
-	}
-	return nil
 }

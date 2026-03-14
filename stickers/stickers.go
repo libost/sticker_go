@@ -166,13 +166,15 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Log(fmt.Sprintf("Video sticker saved as GIF: %s", filePath), C.LogLevelInfo)
 	default:
 		if cf.General.TgsSupport {
-			filePath, err = utils.DecodeTgsToGIF(C.CacheDir + sticker.FileId + fileExt)
+			err = utils.ExtractTgsJSON(sticker.FileId)
+			if err != nil {
+				return err
+			}
+			err = utils.DecodeTgsToGIF(C.CacheDir)
 			if err != nil {
 				if errors.Is(err, utils.ErrTgsConversionUnsupported) {
-					filePath = C.CacheDir + sticker.FileId + fileExt
-					log.Log(fmt.Sprintf("TGS->GIF unsupported, fallback to original TGS: %s; err=%v", filePath, err), C.LogLevelWarn)
-				} else {
-					return err
+					filePath = C.CacheDir + sticker.FileId + ".tgs"
+					log.Log(fmt.Sprintf("TGS->GIF unsupported for %s, fallback to original TGS: %s", sticker.FileId, filePath), C.LogLevelWarn)
 				}
 			}
 			log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)

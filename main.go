@@ -110,6 +110,13 @@ func main() {
 	if err != nil {
 		L.Log(fmt.Sprintf("ffmpeg is not installed or not in PATH: %v", err), C.LogLevelFatal)
 	}
+	if cfg.General.TgsSupport {
+		cmd = exec.Command("docker", "run", "--rm", "edasriyan/lottie-to-gif", "--version")
+		err = cmd.Run()
+		if err != nil {
+			L.Log(fmt.Sprintf("Docker is not installed or 'edasriyan/lottie-to-gif' image is not available: %v", err), C.LogLevelFatal)
+		}
+	}
 	logDir := C.LogDir
 	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
 	if os.IsNotExist(err) || (err == nil && !logInfo.IsDir()) {
