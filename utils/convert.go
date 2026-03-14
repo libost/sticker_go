@@ -1,11 +1,9 @@
 package utils
 
 import (
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"image/png"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,27 +75,4 @@ func DecodeTgsToGIF(dir string) error {
 	}
 
 	return nil
-}
-
-func ExtractTgsJSON(fileid string) error {
-	tgsFile, err := os.Open(C.CacheDir + fileid + ".tgs")
-	if err != nil {
-		return err
-	}
-	defer tgsFile.Close()
-
-	gzipReader, err := gzip.NewReader(tgsFile)
-	if err != nil {
-		return err
-	}
-	defer gzipReader.Close()
-
-	jsonFile, err := os.Create(C.CacheDir + fileid + ".json")
-	if err != nil {
-		return err
-	}
-	defer jsonFile.Close()
-
-	_, err = io.Copy(jsonFile, gzipReader)
-	return err
 }

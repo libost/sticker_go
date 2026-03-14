@@ -117,11 +117,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 		default:
 			tgsContained = true
 			if cf.General.TgsSupport {
-				err = utils.ExtractTgsJSON(sticker.FileId)
-				if err != nil {
-					return nil, err
-				}
-				convertedPath = C.CacheDir + sticker.FileId + ".gif"
+				convertedPath = C.CacheDir + sticker.FileId + ".tgs" + ".gif"
 				tgsFileIDs = append(tgsFileIDs, sticker.FileId)
 			} else {
 				convertedPath = rawPath
@@ -140,7 +136,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 		if err != nil {
 			if errors.Is(err, utils.ErrTgsConversionUnsupported) {
 				for _, fileID := range tgsFileIDs {
-					gifPath := C.CacheDir + fileID + ".json" + ".gif"
+					gifPath := C.CacheDir + fileID + ".tgs" + ".gif"
 					tgsPath := C.CacheDir + fileID + ".tgs"
 					for i := range filePaths {
 						if filePaths[i] == gifPath {
