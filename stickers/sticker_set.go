@@ -140,7 +140,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64) ([]string,
 		if err != nil {
 			if errors.Is(err, utils.ErrTgsConversionUnsupported) {
 				for _, fileID := range tgsFileIDs {
-					gifPath := C.CacheDir + fileID + ".gif"
+					gifPath := C.CacheDir + fileID + ".json" + ".gif"
 					tgsPath := C.CacheDir + fileID + ".tgs"
 					for i := range filePaths {
 						if filePaths[i] == gifPath {

@@ -179,7 +179,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 					return err
 				}
 			} else {
-				filePath = C.CacheDir + sticker.FileId + ".gif"
+				filePath = C.CacheDir + sticker.FileId + ".json" + ".gif"
 				log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
 			}
 		} else {
