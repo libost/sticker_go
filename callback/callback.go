@@ -21,13 +21,14 @@ import (
 
 const (
 	zipSendAttempts     = 3
-	zipSendTimeout      = 3 * time.Minute
+	zipSendTimeout      = 3 * time.Minute // 按照国内最小的带宽 3Mbps 来计算，50MB 的文件大约需要 2 分钟，这里设置为 3 分钟以提供一些缓冲时间
 	zipSendRetryBackoff = 2 * time.Second
 )
 
 func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("get_pack_"), getPackHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("clear_logs_"), clearLogsHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("shutdown_"), shutdownHandler))
 }
 
 func isRetryableSendDocumentError(err error) bool {
@@ -151,6 +152,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				ChatId:    ctx.EffectiveChat.Id,
 				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 			})
+			os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id))
 			return err
 		}
 	}
@@ -164,6 +166,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	log.Log(fmt.Sprintf("User %d successfully downloaded sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
 	removeZipFiles(zipPaths)
+	os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id))
 	return nil
 }
 
@@ -199,5 +202,30 @@ func clearLogsHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 	})
 	log.Log(fmt.Sprintf("User %d cancelled log clearing", ctx.EffectiveUser.Id), C.LogLevelInfo)
+	return nil
+}
+
+func shutdownHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	callbackData := ctx.CallbackQuery.Data
+	result := strings.TrimPrefix(callbackData, "shutdown_")
+	// 先回应回调查询，避免客户端超时
+	_, err := ctx.CallbackQuery.Answer(b, nil)
+	if err != nil {
+		return err
+	}
+	if result == "confirm" {
+		log.Log(fmt.Sprintf("User %d initiated shutdown", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, _, _ = b.EditMessageText("正在关闭机器人...", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		os.Exit(0)
+	} else {
+		log.Log(fmt.Sprintf("User %d cancelled shutdown", ctx.EffectiveUser.Id), C.LogLevelInfo)
+		_, _, _ = b.EditMessageText("已取消关闭机器人。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+	}
 	return nil
 }

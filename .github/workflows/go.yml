@@ -6,8 +6,28 @@ name: Go
 on:
   push:
     branches: [ "dev", "dev_tgs" ]
+    paths-ignore:
+      - ".github/**"
+      - ".github/workflows/**"
+      - "config.yaml"
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
+      - "docs/**"
+      - "examples/**"
+      - "scripts/**"
   pull_request:
     branches: [ "dev" ]
+    paths-ignore:
+      - ".github/**"
+      - ".github/workflows/**"
+      - "config.yaml"
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
+      - "docs/**"
+      - "examples/**"
+      - "scripts/**"
 
 jobs:
   build:
