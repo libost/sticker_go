@@ -51,6 +51,8 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		return nil, &StickerPackLimitError{PackLength: packLength, Limit: cf.General.LimitPerPack}
 	}
 
+	tempDir := fmt.Sprintf("%s/%d", C.CacheDir, uid)
+	os.MkdirAll(tempDir, 0755)
 	var filePaths []string
 	tgsContained := false
 	tgsFileIDs := make([]string, 0)
@@ -78,10 +80,25 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 
 		}
 
-		// 优先使用缓存
+		// 优先使用缓存，把缓存的文件复制到临时目录进行处理，避免直接在缓存目录进行转换操作导致的并发问题
 		cachedPath := C.CacheDir + sticker.FileId + fileExtConverted
 		if _, statErr := os.Stat(cachedPath); statErr == nil {
-			filePaths = append(filePaths, cachedPath)
+			sourceInfo, err := os.Stat(cachedPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to stat cached file %s: %v", cachedPath, err)
+			}
+			input, err := os.Open(cachedPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to open cached file %s: %v", cachedPath, err)
+			}
+			defer input.Close()
+			outputPath := tempDir + "/" + sticker.FileId + fileExtConverted
+			output, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode())
+			if err != nil {
+				return nil, fmt.Errorf("failed to create temp file %s: %v", outputPath, err)
+			}
+			io.Copy(output, input)
+			filePaths = append(filePaths, outputPath)
 			continue
 		}
 
@@ -114,19 +131,19 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		var convertedPath string
 		switch fileExt {
 		case ".webp":
-			convertedPath, err = utils.DecodeWebPToPNG(sticker.FileId)
+			convertedPath, err = utils.DecodeWebPToPNG(rawPath)
 			if err != nil {
 				return nil, err
 			}
 		case ".webm":
-			convertedPath, err = utils.DecodeWebMToGIF(sticker.FileId)
+			convertedPath, err = utils.DecodeWebMToGIF(rawPath)
 			if err != nil {
 				return nil, err
 			}
 		default:
 			tgsContained = true
 			if cf.General.TgsSupport {
-				convertedPath = C.CacheDir + sticker.FileId + ".tgs" + ".gif"
+				convertedPath = tempDir + "/" + sticker.FileId + ".tgs" + ".gif"
 				tgsFileIDs = append(tgsFileIDs, sticker.FileId)
 			} else {
 				convertedPath = rawPath
@@ -145,12 +162,12 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 			ChatId:    uid,
 			MessageId: messageId,
 		})
-		err = utils.DecodeTgsToGIF(C.CacheDir)
+		err = utils.DecodeTgsToGIF(tempDir)
 		if err != nil {
 			if errors.Is(err, utils.ErrTgsConversionUnsupported) {
 				for _, fileID := range tgsFileIDs {
-					gifPath := C.CacheDir + fileID + ".tgs" + ".gif"
-					tgsPath := C.CacheDir + fileID + ".tgs"
+					gifPath := tempDir + "/" + fileID + ".tgs" + ".gif"
+					tgsPath := tempDir + "/" + fileID + ".tgs"
 					for i := range filePaths {
 						if filePaths[i] == gifPath {
 							filePaths[i] = tgsPath
@@ -162,13 +179,13 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 				return nil, fmt.Errorf("failed to convert TGS to GIF: %v", err)
 			}
 		} else {
-			tgsFiles, globErr := filepath.Glob(filepath.Join(C.CacheDir, "*.tgs"))
+			tgsFiles, globErr := filepath.Glob(filepath.Join(tempDir, "*.tgs"))
 			if globErr == nil {
 				for _, tgsFile := range tgsFiles {
 					_ = os.Remove(tgsFile)
 				}
 			}
-			pattern := filepath.Join(C.CacheDir, "*.json")
+			pattern := filepath.Join(tempDir, "*.json")
 			jsonFiles, globErr := filepath.Glob(pattern)
 			if globErr == nil {
 				for _, jsonFile := range jsonFiles {
@@ -179,7 +196,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		}
 
 	}
-	zipPaths, err := buildStickerPackZips(stickerSetName, filePaths)
+	zipPaths, err := buildStickerPackZips(stickerSetName, filePaths, tempDir)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +204,19 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		for _, path := range filePaths {
 			os.Remove(path) // 如果缓存未启用，处理完成后删除文件
 			log.Log(fmt.Sprintf("Cache disabled, removed file: %s", path), C.LogLevelInfo)
+		}
+	} else {
+		// 贴纸包处理完成后移动下载的文件到缓存目录，供后续同一贴纸包的下载使用
+		for _, path := range filePaths {
+			cachedPath := C.CacheDir + filepath.Base(path)
+			_, err := os.Stat(cachedPath)
+			if err == nil {
+				log.Log(fmt.Sprintf("File already exists in cache, skipping move: %s", cachedPath), C.LogLevelInfo)
+				continue
+			}
+			if err := os.Rename(path, cachedPath); err != nil {
+				log.Log(fmt.Sprintf("Failed to move file to cache: %s", err), C.LogLevelError)
+			}
 		}
 	}
 	usage := max(math.Ceil(float64(len(stickerSet.Stickers))/2)-1, 1) // 按照每 2 个贴纸计 1 次使用，向上取整，最后减去 1 次（因为第一次使用不计数）,最少计 1 次
@@ -224,7 +254,7 @@ func addFileToZip(archive *zip.Writer, filename string) error {
 	return err
 }
 
-func buildStickerPackZips(stickerSetName string, filePaths []string) ([]string, error) {
+func buildStickerPackZips(stickerSetName string, filePaths []string, tempDir string) ([]string, error) {
 	if len(filePaths) == 0 {
 		return nil, fmt.Errorf("sticker pack %s is empty", stickerSetName)
 	}
@@ -275,7 +305,7 @@ func buildStickerPackZips(stickerSetName string, filePaths []string) ([]string, 
 		if len(filePaths) > 1 {
 			suffix = fmt.Sprintf(".part%d.zip", part)
 		}
-		currentZipPath = filepath.Join(C.CacheDir, sanitizeZipBaseName(stickerSetName)+suffix)
+		currentZipPath = filepath.Join(tempDir, sanitizeZipBaseName(stickerSetName)+suffix)
 		file, err := os.Create(currentZipPath)
 		if err != nil {
 			return fmt.Errorf("failed to create zip file: %v", err)
@@ -333,7 +363,7 @@ func buildStickerPackZips(stickerSetName string, filePaths []string) ([]string, 
 	}
 
 	if len(zipPaths) == 1 && strings.HasSuffix(zipPaths[0], ".part1.zip") {
-		newPath := filepath.Join(C.CacheDir, sanitizeZipBaseName(stickerSetName)+".zip")
+		newPath := filepath.Join(tempDir, sanitizeZipBaseName(stickerSetName)+".zip")
 		if err := os.Rename(zipPaths[0], newPath); err != nil {
 			cleanupZipPaths(zipPaths)
 			return nil, fmt.Errorf("failed to rename zip file: %v", err)

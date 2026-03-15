@@ -31,6 +31,9 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if sticker == nil {
 		return nil // 不是贴纸消息，忽略
 	}
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅处理私聊中的贴纸消息，忽略群聊和频道中的贴纸
+	}
 	currentUsage, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -148,7 +151,9 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	defer resp.Body.Close()
 	// 将文件保存到本地
-	out, err := os.Create(fmt.Sprintf("%s%s%s", C.CacheDir, sticker.FileId, fileExt))
+	tempDir := fmt.Sprintf("./%s/%d/", C.CacheDir, sentMsg.Chat.Id)
+	os.MkdirAll(tempDir, 0755)
+	out, err := os.Create(fmt.Sprintf("%s%s%s", tempDir, sticker.FileId, fileExt))
 	if err != nil {
 		return err
 	}
@@ -160,48 +165,51 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var filePath string
 	switch fileExt {
 	case ".webp":
-		filePath, err = utils.DecodeWebPToPNG(sticker.FileId)
+		filePath, err = utils.DecodeWebPToPNG(fmt.Sprintf("%s%s%s", tempDir, sticker.FileId, fileExt))
 		if err != nil {
 			return err
 		}
 		log.Log(fmt.Sprintf("Sticker saved as PNG: %s", filePath), C.LogLevelInfo)
 	case ".webm":
-		filePath, err = utils.DecodeWebMToGIF(sticker.FileId)
+		filePath, err = utils.DecodeWebMToGIF(fmt.Sprintf("%s%s%s", tempDir, sticker.FileId, fileExt))
 		if err != nil {
 			return err
 		}
 		log.Log(fmt.Sprintf("Video sticker saved as GIF: %s", filePath), C.LogLevelInfo)
 	default:
 		if cf.General.TgsSupport {
-			err = utils.DecodeTgsToGIF(C.CacheDir)
+			err = utils.DecodeTgsToGIF(tempDir)
 			if err != nil {
 				if errors.Is(err, utils.ErrTgsConversionUnsupported) {
-					filePath = C.CacheDir + sticker.FileId + ".tgs"
+					filePath = tempDir + sticker.FileId + ".tgs"
 					log.Log(fmt.Sprintf("TGS->GIF unsupported for %s, fallback to original TGS: %s", sticker.FileId, filePath), C.LogLevelWarn)
 				} else {
 					return err
 				}
 			} else {
-				filePath = C.CacheDir + sticker.FileId + ".tgs" + ".gif"
-				os.Remove(C.CacheDir + sticker.FileId + ".json")
+				filePath = tempDir + sticker.FileId + ".tgs" + ".gif"
+				os.Remove(tempDir + sticker.FileId + ".json")
 				log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
 			}
 		} else {
-			filePath = C.CacheDir + sticker.FileId + fileExt
+			filePath = tempDir + sticker.FileId + fileExt
 			log.Log(fmt.Sprintf("Animated sticker uses its original file: %s", filePath), C.LogLevelInfo)
 		}
 	}
 	// 仅在转换输出不是原始文件时删除原始文件。
-	if filePath != C.CacheDir+sticker.FileId+fileExt {
-		os.Remove(C.CacheDir + sticker.FileId + fileExt)
+	if filePath != tempDir+sticker.FileId+fileExt {
+		os.Remove(tempDir + sticker.FileId + fileExt)
 	}
 	fileSend, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
-	defer fileSend.Close()
 	_, err = b.SendDocument(ctx.EffectiveUser.Id, gotgbot.InputFileByReader(fileSend.Name(), fileSend), &gotgbot.SendDocumentOpts{})
 	if err != nil {
+		_ = fileSend.Close()
+		return err
+	}
+	if err = fileSend.Close(); err != nil {
 		return err
 	}
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
@@ -210,10 +218,29 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		MessageId:   sentMsg.MessageId,
 		ReplyMarkup: inlineKeyboard,
 	})
+	log.Log(fmt.Sprintf("User %d successfully processed sticker %s", ctx.EffectiveUser.Id, sticker.FileId), C.LogLevelInfo)
 	if !cf.Cache.Enabled {
 		os.Remove(filePath) // 如果缓存未启用，处理完成后删除文件
+		os.RemoveAll(tempDir)
 		log.Log(fmt.Sprintf("Cache disabled, removed file: %s", filePath), C.LogLevelInfo)
+		return nil
 	}
-	log.Log(fmt.Sprintf("User %d successfully processed sticker %s", ctx.EffectiveUser.Id, sticker.FileId), C.LogLevelInfo)
+
+	err = os.MkdirAll(C.CacheDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stat(cachefilePath)
+	if os.IsNotExist(err) {
+		err = os.Rename(filePath, cachefilePath)
+		if err != nil {
+			return err
+		}
+		log.Log(fmt.Sprintf("Moved converted sticker to cache: %s", cachefilePath), C.LogLevelInfo)
+	} else if err != nil {
+		return err
+	}
+	os.RemoveAll(tempDir)
 	return nil
 }

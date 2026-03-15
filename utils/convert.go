@@ -9,15 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	C "libost/sticker_go/constants"
-
 	"golang.org/x/image/webp"
 )
 
 var ErrTgsConversionUnsupported = errors.New("tgs conversion unsupported by current Docker-based converter")
 
-func DecodeWebPToPNG(fileId string) (filePath string, err error) {
-	f, err := os.Open(C.CacheDir + fileId + ".webp")
+func DecodeWebPToPNG(inputPath string) (filePath string, err error) {
+	f, err := os.Open(inputPath)
 	if err != nil {
 		return "", err
 	}
@@ -26,7 +24,7 @@ func DecodeWebPToPNG(fileId string) (filePath string, err error) {
 	if err != nil {
 		return "", err
 	}
-	outPutFile, err := os.Create(C.CacheDir + fileId + ".png")
+	outPutFile, err := os.Create(strings.TrimSuffix(inputPath, ".webp") + ".png")
 	if err != nil {
 		return "", err
 	}
@@ -35,19 +33,19 @@ func DecodeWebPToPNG(fileId string) (filePath string, err error) {
 	if err != nil {
 		return "", err
 	}
-	return C.CacheDir + fileId + ".png", nil
+	return strings.TrimSuffix(inputPath, ".webp") + ".png", nil
 }
 
-func DecodeWebMToGIF(fileId string) (filePath string, err error) {
+func DecodeWebMToGIF(inputPath string) (filePath string, err error) {
 	// 这里需要使用第三方库来处理 WebM 视频并转换为 GIF
 	// 例如，可以使用 ffmpeg 命令行工具来完成这个任务
 	// 你需要确保系统上安装了 ffmpeg，并且在 PATH 中可用
-	cmd := exec.Command("ffmpeg", "-i", C.CacheDir+fileId+".webm", C.CacheDir+fileId+".gif")
+	cmd := exec.Command("ffmpeg", "-i", inputPath, strings.TrimSuffix(inputPath, ".webm")+".gif")
 	err = cmd.Run()
 	if err != nil {
 		return "", err
 	}
-	return C.CacheDir + fileId + ".gif", nil
+	return strings.TrimSuffix(inputPath, ".webm") + ".gif", nil
 }
 
 func DecodeTgsToGIF(dir string) error {

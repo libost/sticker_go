@@ -34,11 +34,16 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("about", about))
 	dispatcher.AddHandler(handlers.NewCommand("clearlogs", clearLogs))
 	dispatcher.AddHandler(handlers.NewCommand("restart", restart))
+	dispatcher.AddHandler(handlers.NewCommand("shutdown", shutdown))
 }
 
 // start 处理器函数
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
-	_, err := ctx.EffectiveMessage.Reply(b, "您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。", nil)
+	if ctx.EffectiveChat.Type != "private" {
+		_, err := ctx.EffectiveMessage.Reply(b, "请在私聊中使用这个命令哦！", nil)
+		return err
+	}
+	_, err := ctx.EffectiveMessage.Reply(b, "您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。\n项目地址： https://github.com/libost/sticker_go", nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -59,6 +64,9 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 		"/help - 获取帮助信息\n" +
 		"/usage - 查看使用情况\n" +
 		"/about - 查看版本信息"
+	if ctx.EffectiveChat.Type != "private" {
+		displayText = "请在私聊中使用这些命令哦！\n\n" + displayText
+	}
 
 	_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
@@ -77,6 +85,10 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // usage 处理器函数
 func usage(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		_, err := ctx.EffectiveMessage.Reply(b, "请在私聊中使用这个命令哦！", nil)
+		return err
+	}
 	data, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -117,13 +129,16 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // getstats 处理器函数
 func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /getstats 命令，忽略群聊和频道中的命令
+	}
 	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
 	if !data["exists"].(bool) {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /getstats without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
@@ -175,13 +190,16 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // setadmin 处理器函数
 func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /setadmin 命令，忽略群聊和频道中的命令
+	}
 	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
 	if !data["exists"].(bool) {
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "正在创建用户记录。\n请重试你刚才的命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
@@ -216,13 +234,16 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func resetUsage(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /reset 命令，忽略群聊和频道中的命令
+	}
 	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
 	if !data["exists"].(bool) {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /reset without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
@@ -238,12 +259,16 @@ func resetUsage(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /clearcache 命令，忽略群聊和频道中的命令
+	}
 	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
 	if !data["exists"].(bool) {
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		log.Log(fmt.Sprintf("User %d attempted to trigger /clearcache without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
@@ -268,12 +293,16 @@ func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /setcommands 命令，忽略群聊和频道中的命令
+	}
 	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
 	if !data["exists"].(bool) {
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		log.Log(fmt.Sprintf("User %d attempted to trigger /setcommands without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
@@ -298,7 +327,14 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
-	_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("版本: <code>%s</code>\n构建时间: <code>%s</code>\nGit 提交: <code>%s</code>\n分支: <code>%s</code>\n项目地址: https://github.com/libost/sticker_go", V.Version, V.BuildTime, V.GitCommit, V.Branch), &gotgbot.SendMessageOpts{
+	displayText := fmt.Sprintf("版本: <code>%s</code>\n构建时间: <code>%s</code>\nGit 提交: <code>%s</code>\n分支: <code>%s</code>\n项目地址: https://github.com/libost/sticker_go", V.Version, V.BuildTime, V.GitCommit, V.Branch)
+	if ctx.EffectiveChat.Type != "private" {
+		displayText = "检测到群聊环境，大部分功能已禁用\n\n" + displayText
+	}
+	if ctx.EffectiveChat.Type == "channel" {
+		return nil // 频道中不响应 /about 命令
+	}
+	_, err := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 		ParseMode: "HTML",
 	})
 	log.Log(fmt.Sprintf("User %d triggered /about", ctx.EffectiveUser.Id), C.LogLevelInfo)
@@ -306,12 +342,16 @@ func about(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /clearlogs 命令，忽略群聊和频道中的命令
+	}
 	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
 	if !data["exists"].(bool) {
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		log.Log(fmt.Sprintf("User %d attempted to trigger /clearlogs without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
@@ -336,12 +376,16 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func restart(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /restart 命令，忽略群聊和频道中的命令
+	}
 	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
 	if !data["exists"].(bool) {
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		log.Log(fmt.Sprintf("User %d attempted to trigger /restart without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
@@ -382,6 +426,50 @@ func restart(b *gotgbot.Bot, ctx *ext.Context) error {
 			env := os.Environ()
 			err = syscall.Exec(pathExe, args, env)
 		}
+	}
+	return nil
+}
+
+func shutdown(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /shutdown 命令，忽略群聊和频道中的命令
+	}
+	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if !data["exists"].(bool) {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /shutdown without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		database.Init("create", ctx.EffectiveUser.Id, nil)
+		return err
+	}
+	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /shutdown without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		return err
+	}
+	displayText := "真的要关闭机器人吗？\n此操作不可逆！"
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		_, exists := os.LookupEnv("INVOCATION_ID")
+		if exists {
+			displayText += "\n警告：当前环境似乎是 systemd 管理的服务，确认后机器人将会自动重启。"
+		}
+	}
+	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{Text: "确认", CallbackData: "shutdown_confirm"},
+				{Text: "取消", CallbackData: "shutdown_cancel"},
+			},
+		},
+	}
+	_, err = ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+		ReplyMarkup: inlineKeyboard,
+	})
+	log.Log(fmt.Sprintf("User %d triggered /shutdown", ctx.EffectiveUser.Id), C.LogLevelWarn)
+	if err != nil {
+		return err
 	}
 	return nil
 }

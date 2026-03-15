@@ -198,6 +198,9 @@ func main() {
 			panic("failed to set webhook: " + err.Error())
 		}
 	} else {
+		_, err := b.DeleteWebhook(&gotgbot.DeleteWebhookOpts{
+			DropPendingUpdates: true, // 启动时忽略之前的积压消息
+		}) // 使用轮询时删除任何现有的 Webhook
 		err = updater.StartPolling(b, &ext.PollingOpts{
 			DropPendingUpdates: true, // 启动时忽略之前的积压消息
 			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
