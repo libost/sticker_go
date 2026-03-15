@@ -80,34 +80,6 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	var fileExt string
-	var fileExtConverted string
-	switch true {
-	case sticker.IsAnimated:
-		fileExt = ".tgs"
-		if cf.General.TgsSupport {
-			fileExtConverted = ".gif"
-		} else {
-			fileExtConverted = ".tgs"
-		}
-	case sticker.IsVideo:
-		// 处理视频贴纸
-		fileExt = ".webm"
-		fileExtConverted = ".gif"
-	default:
-		// 处理普通贴纸
-		fileExt = ".webp"
-		fileExtConverted = ".png"
-	}
-	var cachefilePath string
-	if fileExt == ".tgs" && cf.General.TgsSupport {
-		// 对于 TGS 文件，如果启用了 TGS 支持，先检查转换后的 GIF 是否存在
-		cachefilePath = C.CacheDir + sticker.FileId + fileExt + fileExtConverted
-	} else {
-		// 对于其他文件类型，直接使用原始文件路径
-		cachefilePath = C.CacheDir + sticker.FileId + fileExtConverted
-	}
-	_, err = os.Stat(cachefilePath)
 	inlineKeyboard := gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
@@ -120,86 +92,11 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		},
 	}
-	if err == nil {
-		log.Log(fmt.Sprintf("Sticker cached: %s", cachefilePath), C.LogLevelInfo)
-		fileExist, err := os.Open(cachefilePath)
-		if err != nil {
-			return err
-		}
-		defer fileExist.Close()
-		_, err = b.SendDocument(ctx.EffectiveUser.Id, gotgbot.InputFileByReader(fileExist.Name(), fileExist), &gotgbot.SendDocumentOpts{})
-		if err != nil {
-			return err
-		}
-		database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
-		_, _, _ = b.EditMessageText("处理完成！", &gotgbot.EditMessageTextOpts{
-			ChatId:      sentMsg.Chat.Id,
-			MessageId:   sentMsg.MessageId,
-			ReplyMarkup: inlineKeyboard,
-		})
-		return nil
-	}
-	file, err := b.GetFile(sticker.FileId, &gotgbot.GetFileOpts{})
+	filePath, cleanup, err := GetSticker(b, sticker, ctx.EffectiveUser.Id, cf)
 	if err != nil {
 		return err
 	}
-	// 在这里可以处理贴纸文件，例如下载或上传
-	downloadUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.Token, file.FilePath)
-	resp, err := http.Get(downloadUrl)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	// 将文件保存到本地
-	tempDir := fmt.Sprintf("./%s/%d/", C.CacheDir, sentMsg.Chat.Id)
-	os.MkdirAll(tempDir, 0755)
-	out, err := os.Create(fmt.Sprintf("%s%s%s", tempDir, sticker.FileId, fileExt))
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(out, resp.Body)
-	out.Close()
-	if err != nil {
-		return err
-	}
-	var filePath string
-	switch fileExt {
-	case ".webp":
-		filePath, err = utils.DecodeWebPToPNG(fmt.Sprintf("%s%s%s", tempDir, sticker.FileId, fileExt))
-		if err != nil {
-			return err
-		}
-		log.Log(fmt.Sprintf("Sticker saved as PNG: %s", filePath), C.LogLevelInfo)
-	case ".webm":
-		filePath, err = utils.DecodeWebMToGIF(fmt.Sprintf("%s%s%s", tempDir, sticker.FileId, fileExt))
-		if err != nil {
-			return err
-		}
-		log.Log(fmt.Sprintf("Video sticker saved as GIF: %s", filePath), C.LogLevelInfo)
-	default:
-		if cf.General.TgsSupport {
-			err = utils.DecodeTgsToGIF(tempDir)
-			if err != nil {
-				if errors.Is(err, utils.ErrTgsConversionUnsupported) {
-					filePath = tempDir + sticker.FileId + ".tgs"
-					log.Log(fmt.Sprintf("TGS->GIF unsupported for %s, fallback to original TGS: %s", sticker.FileId, filePath), C.LogLevelWarn)
-				} else {
-					return err
-				}
-			} else {
-				filePath = tempDir + sticker.FileId + ".tgs" + ".gif"
-				os.Remove(tempDir + sticker.FileId + ".json")
-				log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
-			}
-		} else {
-			filePath = tempDir + sticker.FileId + fileExt
-			log.Log(fmt.Sprintf("Animated sticker uses its original file: %s", filePath), C.LogLevelInfo)
-		}
-	}
-	// 仅在转换输出不是原始文件时删除原始文件。
-	if filePath != tempDir+sticker.FileId+fileExt {
-		os.Remove(tempDir + sticker.FileId + fileExt)
-	}
+	defer cleanup()
 	fileSend, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -219,28 +116,151 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		ReplyMarkup: inlineKeyboard,
 	})
 	log.Log(fmt.Sprintf("User %d successfully processed sticker %s", ctx.EffectiveUser.Id, sticker.FileId), C.LogLevelInfo)
-	if !cf.Cache.Enabled {
-		os.Remove(filePath) // 如果缓存未启用，处理完成后删除文件
-		os.RemoveAll(tempDir)
-		log.Log(fmt.Sprintf("Cache disabled, removed file: %s", filePath), C.LogLevelInfo)
-		return nil
+	return nil
+}
+
+func GetSticker(b *gotgbot.Bot, sticker *gotgbot.Sticker, uid int64, cf *config.Config) (string, func(), error) {
+	if sticker == nil {
+		return "", func() {}, errors.New("sticker is nil")
 	}
 
-	err = os.MkdirAll(C.CacheDir, 0755)
+	fileExt, fileExtConverted := getStickerExtensions(sticker, cf.General.TgsSupport)
+	cachefilePath := getStickerCachePath(sticker.FileId, fileExt, fileExtConverted, cf.General.TgsSupport)
+	if _, err := os.Stat(cachefilePath); err == nil {
+		log.Log(fmt.Sprintf("Sticker cached: %s", cachefilePath), C.LogLevelInfo)
+		return cachefilePath, func() {}, nil
+	} else if !os.IsNotExist(err) {
+		return "", func() {}, err
+	}
+
+	tempDir := fmt.Sprintf("./%s/%d/", C.CacheDir, uid)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return "", func() {}, err
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(tempDir)
+	}
+
+	rawPath := fmt.Sprintf("%s%s%s", tempDir, sticker.FileId, fileExt)
+	if err := downloadStickerFile(b, sticker.FileId, rawPath); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+
+	filePath, err := convertStickerFile(sticker, rawPath, tempDir, cf.General.TgsSupport)
+	if err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+
+	if !cf.Cache.Enabled {
+		return filePath, cleanup, nil
+	}
+
+	if err := os.MkdirAll(C.CacheDir, 0755); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+
+	if _, err := os.Stat(cachefilePath); os.IsNotExist(err) {
+		if err := os.Rename(filePath, cachefilePath); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		log.Log(fmt.Sprintf("Moved converted sticker to cache: %s", cachefilePath), C.LogLevelInfo)
+	} else if err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+
+	return cachefilePath, cleanup, nil
+}
+
+func getStickerExtensions(sticker *gotgbot.Sticker, tgsSupport bool) (string, string) {
+	switch {
+	case sticker.IsAnimated:
+		if tgsSupport {
+			return ".tgs", ".gif"
+		}
+		return ".tgs", ".tgs"
+	case sticker.IsVideo:
+		return ".webm", ".gif"
+	default:
+		return ".webp", ".png"
+	}
+}
+
+func getStickerCachePath(fileID string, fileExt string, fileExtConverted string, tgsSupport bool) string {
+	if fileExt == ".tgs" && tgsSupport {
+		return C.CacheDir + fileID + fileExt + fileExtConverted
+	}
+	return C.CacheDir + fileID + fileExtConverted
+}
+
+func downloadStickerFile(b *gotgbot.Bot, fileID string, outputPath string) error {
+	file, err := b.GetFile(fileID, &gotgbot.GetFileOpts{})
 	if err != nil {
 		return err
 	}
 
-	_, err = os.Stat(cachefilePath)
-	if os.IsNotExist(err) {
-		err = os.Rename(filePath, cachefilePath)
-		if err != nil {
-			return err
-		}
-		log.Log(fmt.Sprintf("Moved converted sticker to cache: %s", cachefilePath), C.LogLevelInfo)
-	} else if err != nil {
+	downloadURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.Token, file.FilePath)
+	resp, err := http.Get(downloadURL)
+	if err != nil {
 		return err
 	}
-	os.RemoveAll(tempDir)
-	return nil
+	defer resp.Body.Close()
+
+	out, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func convertStickerFile(sticker *gotgbot.Sticker, rawPath string, tempDir string, tgsSupport bool) (string, error) {
+	fileExt, _ := getStickerExtensions(sticker, tgsSupport)
+	filePath := rawPath
+
+	switch fileExt {
+	case ".webp":
+		var err error
+		filePath, err = utils.DecodeWebPToPNG(rawPath)
+		if err != nil {
+			return "", err
+		}
+		log.Log(fmt.Sprintf("Sticker saved as PNG: %s", filePath), C.LogLevelInfo)
+	case ".webm":
+		var err error
+		filePath, err = utils.DecodeWebMToGIF(rawPath)
+		if err != nil {
+			return "", err
+		}
+		log.Log(fmt.Sprintf("Video sticker saved as GIF: %s", filePath), C.LogLevelInfo)
+	case ".tgs":
+		if !tgsSupport {
+			log.Log(fmt.Sprintf("Animated sticker uses its original file: %s", filePath), C.LogLevelInfo)
+			return filePath, nil
+		}
+
+		if err := utils.DecodeTgsToGIF(tempDir); err != nil {
+			if errors.Is(err, utils.ErrTgsConversionUnsupported) {
+				log.Log(fmt.Sprintf("TGS->GIF unsupported for %s, fallback to original TGS: %s", sticker.FileId, rawPath), C.LogLevelWarn)
+				return rawPath, nil
+			}
+			return "", err
+		}
+
+		filePath = tempDir + sticker.FileId + ".tgs" + ".gif"
+		_ = os.Remove(tempDir + sticker.FileId + ".json")
+		log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
+	}
+
+	if filePath != rawPath {
+		_ = os.Remove(rawPath)
+	}
+
+	return filePath, nil
 }

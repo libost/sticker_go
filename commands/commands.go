@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"runtime/metrics"
+	"strings"
 	"syscall"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
 	"libost/sticker_go/log"
+	S "libost/sticker_go/stickers"
 	"libost/sticker_go/utils"
 	V "libost/sticker_go/version"
 
@@ -36,12 +39,13 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("restart", restart))
 	dispatcher.AddHandler(handlers.NewCommand("shutdown", shutdown))
 	dispatcher.AddHandler(handlers.NewCommand("admin", adminCommands))
+	dispatcher.AddHandler(handlers.NewCommand("get", getCommand))
 }
 
 // start 处理器函数
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
-		_, err := ctx.EffectiveMessage.Reply(b, "请在私聊中使用这个命令哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "您好！使用命令 /get 并回复一条贴纸信息，我可以将其转换为图片或视频格式并发送给您。", nil)
 		return err
 	}
 	_, err := ctx.EffectiveMessage.Reply(b, "您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。\n项目地址： https://github.com/libost/sticker_go", nil)
@@ -504,5 +508,88 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		"/shutdown - 关闭机器人"
 	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
 	log.Log(fmt.Sprintf("User %d triggered /admin", ctx.EffectiveUser.Id), C.LogLevelInfo)
+	return err
+}
+
+func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type == "private" {
+		_, err := ctx.EffectiveMessage.Reply(b, "请在群聊中使用这个命令哦！", nil)
+		return err
+	}
+	if ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
+		return nil // 仅允许在群聊中使用 /get 命令，忽略私聊和频道中的命令
+	}
+	if ctx.EffectiveMessage.ReplyToMessage == nil || ctx.EffectiveMessage.ReplyToMessage.Sticker == nil {
+		_, err := ctx.EffectiveMessage.Reply(b, "请回复一个贴纸消息并使用这个命令哦！", nil)
+		return err
+	}
+	cf, err := config.Init()
+	if err != nil {
+		return err
+	}
+	currentUsage, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if !currentUsage["exists"].(bool) {
+		database.Init("create", ctx.EffectiveUser.Id, nil)
+		currentUsage["usage"] = float64(0)
+	}
+	limit := cf.General.Limit
+	if int(currentUsage["usage"].(float64)) >= limit {
+		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("您已达到使用上限 (%d 次)，请稍后再试！", limit), nil)
+		return err
+	}
+	if cf.Subscription.Enabled {
+		err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
+		if err != nil {
+			channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
+			if errors.Is(err, utils.ErrUserNotSubscribed) {
+				displayText := fmt.Sprintf("🤖 为了支持我们的项目并继续提供免费服务，请先加入<a href=\"https://t.me/%s\">官方频道</a> %s 后再使用本功能哦！\n✅ 加入后请再次点击您刚才发送的命令即可继续。", channel, cf.Subscription.Channel)
+				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+					ParseMode: "HTML",
+				})
+				if replyErr != nil {
+					return replyErr
+				}
+				return nil
+			}
+			displayText := fmt.Sprintf("🤖 订阅检查失败，请稍后重试。\n您确定订阅了我们的<a href=\"https://t.me/%s\">官方频道</a> %s 吗？", channel, cf.Subscription.Channel)
+			_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+				ParseMode: "HTML",
+			})
+			if replyErr != nil {
+				return replyErr
+			}
+		}
+	}
+	msg, err := ctx.EffectiveMessage.Reply(b, "正在发送贴纸文件，请稍候...", nil)
+	if err != nil {
+		return err
+	}
+	sticker := ctx.EffectiveMessage.ReplyToMessage.Sticker
+	filePath, _, err := S.GetSticker(b, sticker, ctx.EffectiveUser.Id, cf)
+	if err != nil {
+		return err
+	}
+	fileSend, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer fileSend.Close()
+	replyparameters := &gotgbot.SendDocumentOpts{
+		ReplyParameters: &gotgbot.ReplyParameters{
+			MessageId: ctx.EffectiveMessage.MessageId,
+		},
+	}
+	_, err = b.SendDocument(ctx.EffectiveChat.Id, gotgbot.InputFileByReader(fileSend.Name(), fileSend), replyparameters)
+	if err != nil {
+		return err
+	}
+	_, _, err = b.EditMessageText("贴纸文件发送完成！\n想获得整套贴纸包？请在私聊中与机器人对话。", &gotgbot.EditMessageTextOpts{
+		ChatId:    msg.Chat.Id,
+		MessageId: msg.MessageId,
+	})
+	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
 	return err
 }
