@@ -35,6 +35,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("clearlogs", clearLogs))
 	dispatcher.AddHandler(handlers.NewCommand("restart", restart))
 	dispatcher.AddHandler(handlers.NewCommand("shutdown", shutdown))
+	dispatcher.AddHandler(handlers.NewCommand("admin", adminCommands))
 }
 
 // start 处理器函数
@@ -472,4 +473,36 @@ func shutdown(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	return nil
+}
+
+func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /admin 命令，忽略群聊和频道中的命令
+	}
+	data, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if !data["exists"].(bool) {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /admin without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		database.Init("create", ctx.EffectiveUser.Id, nil)
+		return err
+	}
+	if data["user_group"].(string) != "admin" {
+		log.Log(fmt.Sprintf("User %d attempted to trigger /admin without permission", ctx.EffectiveUser.Id), C.LogLevelWarn)
+		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		return err
+	}
+	displayText := "管理员命令列表：\n" +
+		"/getstats - 获取统计信息\n" +
+		"/reset - 重置当前用户的使用记录\n" +
+		"/clearcache - 清空缓存文件\n" +
+		"/setcommands - 设置机器人命令列表\n" +
+		"/clearlogs - 清除日志文件\n" +
+		"/restart - 重启机器人\n" +
+		"/shutdown - 关闭机器人"
+	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	log.Log(fmt.Sprintf("User %d triggered /admin", ctx.EffectiveUser.Id), C.LogLevelInfo)
+	return err
 }

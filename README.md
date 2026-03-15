@@ -32,7 +32,7 @@ go run main.go
 - 支持Webhook模式和轮询模式
 ## 部分功能说明
 ### Webhook 模式
-如果你希望使用 Webhook 模式，请确保你的服务器能够接受外部请求，并在 `config.yaml` 中正确配置 `webhook` 字段。启用 Webhook 后，Bot 将通过 Webhook 接收更新，而不是轮询 Telegram 服务器。  
+如果你希望使用 Webhook 模式，请确保你的服务器能够接受外部请求（i.e., 拥有公网 IP 和可以从外部访问的 443 端口），并在 `config.yaml` 中正确配置 `webhook` 字段。启用 Webhook 后，Bot 将通过 Webhook 接收更新，而不是轮询 Telegram 服务器。  
 `nginx_enabled` 字段用于配置是否启用 Nginx 反向代理，如果启用，请确保 Nginx 已正确配置以转发请求到 Bot。  Nginx 反向代理配置示例：
 ```nginx
 server {
@@ -93,7 +93,7 @@ webhook:
 经验证兼容CDN，测试时使用Cloudflare的CDN。
 ### TGS 支持
 如果你希望支持 TGS 格式的贴纸，请确保你的服务器上安装了 Docker，并且拉取了 [`edasriyan/lottie-to-gif`](https://hub.docker.com/r/edasriyan/lottie-to-gif) 镜像。启用 TGS 支持后，Bot 将能够将 TGS 格式的贴纸转换为 GIF 格式。  
-如果关闭 TGS 支持，Bot 将无法处理 TGS 格式的贴纸，并且相关的贴纸将依照原样返回（.tgs格式）。
+如果关闭 TGS 支持，Bot 将无法处理 TGS 格式的贴纸，并且相关的贴纸将依照原样返回（.tgs格式）。  
 警告：启用 TGS 支持会增加系统资源的使用，尤其是在处理大量贴纸时，请确保你的服务器有足够的资源来运行 Docker 和转换过程。
 ### 贴纸包分卷
 如果一个贴纸包包含的贴纸的总大小超过了 Telegram 的限制（通常是 50 MB），Bot 将自动将贴纸包分割成多个 ZIP 文件，每个文件的大小不超过限制。 这确保了用户能够成功下载和使用贴纸包，而不会遇到 Telegram 的文件大小限制问题。  
@@ -109,7 +109,7 @@ screen -S sticker_bot
 如果你的服务器需要通过代理访问 Telegram API，请在 `config.yaml` 中配置 `proxy` 字段，支持 HTTP 和 SOCKS5 代理。 例如：
 ```yaml
 proxy:
-  enabled: true
+  enabled: true # 务必改成 true 来启用代理
   type: "socks5" # 或 "http"
   host: "127.0.0.1" # 代理服务器地址，不带协议名，可用IP地址或域名
   port: 1080

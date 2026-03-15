@@ -31,7 +31,7 @@ import (
 func main() {
 	args := os.Args
 	if len(args) > 1 && (args[1] == "version" || args[1] == "-v" || args[1] == "--version") {
-		fmt.Printf("Sticker Bot Version: %s\nBuild Time: %s\n", V.Version, V.BuildTime)
+		fmt.Printf("Sticker Bot Version: %s\nBuild Time: %s\nGit Commit: %s\nBranch: %s", V.Version, V.BuildTime, V.GitCommit, V.Branch)
 		return
 	}
 	if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
