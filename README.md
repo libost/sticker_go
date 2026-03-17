@@ -24,10 +24,12 @@ go run main.go
 
 或者，直接从Release页面下载编译好的二进制文件，解压后运行即可。  不要忘记把 `config.yaml` 文件放在同一目录下。
 
-启动后，在Telegram中输入 `/setadmin <config.yaml中设置的管理员密钥>` 来设置管理员权限，不要泄露管理员密钥给其他人。
+启动后，在Telegram中输入 `/setadmin <config.yaml中设置的管理员密钥>` 来设置管理员权限，不要泄露管理员密钥给其他人。  
+使用命令 `/admin` 来查看管理员功能列表。
 ## 功能
 - 提取 Telegram 消息中的贴纸并转换为 PNG/GIF 格式
 - 支持单张贴纸和贴纸包的提取
+- 支持在群组中使用， 回复一条贴纸信息并使用命令 `/get` 来提取贴纸
 - 支持 TGS 格式的贴纸（需要 Docker 和 [`edasriyan/lottie-to-gif`](https://hub.docker.com/r/edasriyan/lottie-to-gif) 镜像）
 - 支持Webhook模式和轮询模式
 ## 部分功能说明

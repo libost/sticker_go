@@ -142,8 +142,8 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // usage 处理器函数
 func usage(b *gotgbot.Bot, ctx *ext.Context) error {
-	if ctx.EffectiveChat.Type != "private" {
-		_, err := ctx.EffectiveMessage.Reply(b, "请在私聊中使用这个命令哦！", nil)
+	if ctx.EffectiveChat.Type != "private" && ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
+		_, err := ctx.EffectiveMessage.Reply(b, "请在私聊/群组中使用这个命令哦！", nil)
 		return err
 	}
 	data, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
@@ -330,7 +330,24 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		{Command: "usage", Description: "查看使用情况"},
 		{Command: "about", Description: "查看版本信息"},
 	}
-	_, err = b.SetMyCommands(commands, nil)
+	opts := gotgbot.SetMyCommandsOpts{
+		Scope: gotgbot.BotCommandScopeAllPrivateChats{},
+	}
+	_, err = b.SetMyCommands(commands, &opts)
+	if err != nil {
+		return err
+	}
+	commands = []gotgbot.BotCommand{
+		{Command: "start", Description: "开始使用贴纸下载机器人"},
+		{Command: "get", Description: "获取回复信息中的贴纸"},
+		{Command: "help", Description: "获取贴纸下载机器人的帮助信息"},
+		{Command: "usage", Description: "查看使用情况"},
+		{Command: "about", Description: "查看版本信息"},
+	}
+	opts = gotgbot.SetMyCommandsOpts{
+		Scope: gotgbot.BotCommandScopeAllGroupChats{},
+	}
+	_, err = b.SetMyCommands(commands, &opts)
 	if err != nil {
 		return err
 	}
@@ -342,7 +359,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
 	displayText := fmt.Sprintf("版本: <code>%s</code>\n构建时间: <code>%s</code>\nGit 提交: <code>%s</code>\n分支: <code>%s</code>\n项目地址: https://github.com/libost/sticker_go", V.Version, V.BuildTime, V.GitCommit, V.Branch)
 	if ctx.EffectiveChat.Type != "private" {
-		displayText = "检测到群聊环境，大部分功能已禁用\n\n" + displayText
+		displayText = "检测到群聊环境，部分功能已禁用\n\n" + displayText
 	}
 	if ctx.EffectiveChat.Type == "channel" {
 		return nil // 频道中不响应 /about 命令
