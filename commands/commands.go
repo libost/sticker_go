@@ -330,6 +330,10 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		{Command: "usage", Description: "查看使用情况"},
 		{Command: "about", Description: "查看版本信息"},
 	}
+	cf, err := config.Init()
+	if cf.Donation.Enabled {
+		commands = append(commands, gotgbot.BotCommand{Command: "donate", Description: "向我们捐赠"})
+	}
 	opts := gotgbot.SetMyCommandsOpts{
 		Scope: gotgbot.BotCommandScopeAllPrivateChats{},
 	}

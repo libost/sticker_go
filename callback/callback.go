@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
 	"libost/sticker_go/database"
 	"libost/sticker_go/log"
@@ -48,7 +49,15 @@ func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// 必须在 10 秒内调用 AnswerPreCheckoutQuery
 	// 如果一切 OK，第一个参数传 true
-	_, err := b.AnswerPreCheckoutQuery(pq.Id, true, nil)
+	cf, err := config.Init()
+	if !cf.Donation.Enabled {
+		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
+		_, err = b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
+			ErrorMessage: "捐赠功能已关闭，暂时无法接受捐赠。",
+		})
+		return err
+	}
+	_, err = b.AnswerPreCheckoutQuery(pq.Id, true, nil)
 	return err
 }
 
