@@ -8,6 +8,7 @@ require github.com/goccy/go-yaml v1.19.2
 
 require (
 	github.com/creasty/defaults v1.8.0
+	github.com/google/uuid v1.6.0
 	golang.org/x/image v0.37.0
 	golang.org/x/net v0.52.0
 	modernc.org/sqlite v1.46.1
@@ -15,7 +16,6 @@ require (
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect

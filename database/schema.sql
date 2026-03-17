@@ -18,11 +18,11 @@ CREATE TABLE IF NOT EXISTS GRACE_KEY (
     uuid TEXT NOT NULL UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS DONATION_LOG (
+CREATE TABLE IF NOT EXISTS DONATION_LOGS (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timecurrent INTEGER DEFAULT (unixepoch()),
+    timestamp INTEGER DEFAULT (unixepoch()),
     user_id INTEGER NOT NULL,
-    amount REAL NOT NULL,
+    amount INTEGER NOT NULL,
     payload TEXT NOT NULL UNIQUE,
     telegram_payment_charge_id TEXT NOT NULL,
     provider_payment_charge_id TEXT NOT NULL,
