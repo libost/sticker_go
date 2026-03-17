@@ -95,16 +95,22 @@ func main() {
 		}
 	}
 	// 定时清理缓存目录中的过期文件
-	go func() {
-		// 立即执行一次
-		cleanCache(cacheDir, cfg)
-
-		// 之后每隔 1 小时检查一次
-		ticker := time.NewTicker(time.Duration(cfg.Cache.ExpireHours) * time.Hour)
-		for range ticker.C {
+	if cfg.Cache.Enabled {
+		go func() {
+			// 立即执行一次
 			cleanCache(cacheDir, cfg)
-		}
-	}()
+
+			// 之后每隔 1 小时检查一次
+			ticker := time.NewTicker(time.Duration(cfg.Cache.ExpireHours) * time.Hour)
+			for range ticker.C {
+				cleanCache(cacheDir, cfg)
+			}
+		}()
+	} else {
+		L.Log("cache is disabled in config, skipping cache cleanup routine", C.LogLevelInfo)
+		os.RemoveAll(C.CacheDir)
+		os.Mkdir(C.CacheDir, 0755) // 确保缓存目录存在但为空
+	}
 	cmd := exec.Command("ffmpeg", "-version")
 	err = cmd.Run() // 检查 ffmpeg 是否可用
 	if err != nil {
@@ -130,21 +136,15 @@ func main() {
 		}
 	}
 	// 定时清理日志目录中的过期文件
-	if cfg.Cache.Enabled {
-		go func() {
-			// 立即执行一次
+	go func() {
+		// 立即执行一次
+		clearLogs(logDir, cfg)
+		// 之后每天检查一次
+		ticker := time.NewTicker(24 * time.Hour)
+		for range ticker.C {
 			clearLogs(logDir, cfg)
-			// 之后每天检查一次
-			ticker := time.NewTicker(24 * time.Hour)
-			for range ticker.C {
-				clearLogs(logDir, cfg)
-			}
-		}()
-	} else {
-		L.Log("cache is disabled, cleanup cachedir", C.LogLevelInfo)
-		_ = utils.RemoveDirContents(cacheDir)
-	}
-
+		}
+	}()
 	// 创建分发器 (Dispatcher)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
 		Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
@@ -163,6 +163,7 @@ func main() {
 	callback.AddHandlers(dispatcher)
 
 	// 启动 Bot
+	var communicationMethod string
 	if cfg.Webhook.Enabled {
 		webhookURL, err := url.Parse(cfg.Webhook.URL)
 		if err != nil || webhookURL.Scheme == "" || webhookURL.Host == "" {
@@ -197,6 +198,7 @@ func main() {
 			L.Log(fmt.Sprintf("failed to set webhook: %v", err), C.LogLevelFatal)
 			panic("failed to set webhook: " + err.Error())
 		}
+		communicationMethod = "Webhook"
 	} else {
 		_, err := b.DeleteWebhook(&gotgbot.DeleteWebhookOpts{
 			DropPendingUpdates: true, // 启动时忽略之前的积压消息
@@ -214,11 +216,6 @@ func main() {
 			L.Log(fmt.Sprintf("failed to start polling: %v", err), C.LogLevelFatal)
 			panic("failed to start polling: " + err.Error())
 		}
-	}
-	var communicationMethod string
-	if cfg.Webhook.Enabled {
-		communicationMethod = "Webhook"
-	} else {
 		communicationMethod = "Polling"
 	}
 	logText := fmt.Sprintf("%s has started with %s enabled. Log Level: %s", b.User.Username, communicationMethod, cfg.Log.Level)

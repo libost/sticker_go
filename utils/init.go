@@ -34,6 +34,11 @@ func ConfigToYAML() error {
 	defaultConfig.Proxy.Port = 0
 	defaultConfig.Proxy.Username = ""
 	defaultConfig.Proxy.Password = ""
+	defaultConfig.Donation.Enabled = false
+	defaultConfig.Donation.Title = "支持开发"
+	defaultConfig.Donation.Description = "如果你喜欢这个项目，欢迎通过以下方式支持开发！"
+	defaultConfig.Donation.AmountRestrict.Min = 1
+	defaultConfig.Donation.AmountRestrict.Max = 10000
 	defaultConfig.Misc.Timezone = "Asia/Shanghai"
 
 	yamlBytes, err := yaml.Marshal(defaultConfig)

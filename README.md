@@ -35,7 +35,11 @@ go run main.go
 ## 部分功能说明
 ### Webhook 模式
 如果你希望使用 Webhook 模式，请确保你的服务器能够接受外部请求（i.e., 拥有公网 IP 和可以从外部访问的 443 端口），并在 `config.yaml` 中正确配置 `webhook` 字段。启用 Webhook 后，Bot 将通过 Webhook 接收更新，而不是轮询 Telegram 服务器。  
-`nginx_enabled` 字段用于配置是否启用 Nginx 反向代理，如果启用，请确保 Nginx 已正确配置以转发请求到 Bot。  Nginx 反向代理配置示例：
+`nginx_enabled` 字段用于配置是否启用 Nginx 反向代理，如果启用，请确保 Nginx 已正确配置以转发请求到 Bot。  
+
+> `nginx_enabled` 真正的作用是告诉 Bot 将监听地址改为本机环回地址，建议在生产环境中启用 Nginx 反向代理以提高安全性和性能。  
+
+Nginx 反向代理配置示例：
 ```nginx
 server {
     listen 80;
@@ -117,6 +121,20 @@ proxy:
   port: 1080
   username: "proxyuser" # 可选, 无用户名时留空
   password: "proxypass" # 可选，无密码时留空
+```
+### 捐赠功能
+Bot 支持通过 Telegram 的支付功能接受用户的捐赠。 用户可以使用 `/donate` 命令来捐赠 Telegram Stars 给 Bot ，完成支付后，Bot 会记录捐赠信息并发送感谢消息。 用户也可以使用 `/refund` 命令来进行退款。  
+如果需要启用捐赠功能，请配置 `config.yaml` 中的 `donation` 字段。  
+例如：
+```yaml
+donation:
+  enabled: true # 是否启用捐赠功能，默认是 false，启用后会在命令中添加一个 /donate 命令，用户可以通过该命令捐赠 Telegram Stars 给 Bot
+  title: "支持开发" # 捐赠信息标题
+  description: "如果你喜欢这个项目，欢迎通过以下方式支持开发！" # 捐赠信息描述
+  amount_restrict: 
+    min: 1 # 最小捐赠金额，单位为 Telegram Star
+    max: 10000 # 最大捐赠金额，单位为 Telegram Star
+  # 受限于 Apple 和 Google 的政策，不涉及实物的交易不允许使用法币支付，因此暂时只接受 Telegram Star 捐赠
 ```
 ## 许可证
 本项目采用 MIT 许可证，详情请参阅 [LICENSE](LICENSE) 文件。

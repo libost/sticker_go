@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
+	"libost/sticker_go/database"
 	"libost/sticker_go/log"
 	"libost/sticker_go/stickers"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 )
 
 const (
@@ -29,6 +32,53 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("get_pack_"), getPackHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("clear_logs_"), clearLogsHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("shutdown_"), shutdownHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("refund_apply_"), refundApplyHandler))
+	dispatcher.AddHandler(handlers.NewPreCheckoutQuery(allPreCheckouts, preCheckoutHandler))
+	dispatcher.AddHandler(handlers.NewMessage(message.SuccessfulPayment, successHandler))
+}
+
+func allPreCheckouts(pq *gotgbot.PreCheckoutQuery) bool {
+	return true
+}
+
+func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	pq := ctx.PreCheckoutQuery
+
+	// 在这里可以检查库存、数据库状态等
+	// log.Printf("收到支付预检，订单ID: %s, 金额: %d %s", pq.InvoicePayload, pq.TotalAmount, pq.Currency)
+
+	// 必须在 10 秒内调用 AnswerPreCheckoutQuery
+	// 如果一切 OK，第一个参数传 true
+	cf, err := config.Init()
+	if !cf.Donation.Enabled {
+		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
+		_, err = b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
+			ErrorMessage: "捐赠功能已关闭，暂时无法接受捐赠。",
+		})
+		return err
+	}
+	_, err = b.AnswerPreCheckoutQuery(pq.Id, true, nil)
+	return err
+}
+
+func successHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	sp := ctx.Message.SuccessfulPayment
+	// log.Printf("支付成功，订单ID: %s, 金额: %d %s", sp.InvoicePayload, sp.TotalAmount, sp.Currency)
+	_, dbErr := database.Init("donateSuccess", ctx.EffectiveUser.Id, map[string]any{
+		"amount":             sp.TotalAmount,
+		"payload":            sp.InvoicePayload,
+		"telegram_charge_id": sp.TelegramPaymentChargeId,
+		"provider_charge_id": sp.ProviderPaymentChargeId,
+	})
+	if dbErr != nil {
+		log.Log(fmt.Sprintf("User %d donateSuccess persistence failed: %v", ctx.EffectiveUser.Id, dbErr), C.LogLevelError)
+		return dbErr
+	}
+	_, err := b.SendMessage(ctx.EffectiveChat.Id, fmt.Sprintf("感谢您的支持！我们已经收到您支付的 %d %s。", sp.TotalAmount, sp.Currency), nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func isRetryableSendDocumentError(err error) bool {
@@ -223,6 +273,42 @@ func shutdownHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		log.Log(fmt.Sprintf("User %d cancelled shutdown", ctx.EffectiveUser.Id), C.LogLevelInfo)
 		_, _, _ = b.EditMessageText("已取消关闭机器人。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+	}
+	return nil
+}
+
+func refundApplyHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	callbackData := ctx.CallbackQuery.Data
+	telegramPaymentChargeID := strings.TrimPrefix(callbackData, "refund_apply_")
+	// 先回应回调查询，避免客户端超时
+	_, err := ctx.CallbackQuery.Answer(b, nil)
+	if err != nil {
+		return err
+	}
+	ok, err := b.RefundStarPayment(ctx.EffectiveUser.Id, telegramPaymentChargeID, &gotgbot.RefundStarPaymentOpts{})
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to apply for refund: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		_, _, _ = b.EditMessageText("申请退款失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return err
+	}
+	if ok {
+		log.Log(fmt.Sprintf("User %d successfully applied for refund", ctx.EffectiveUser.Id), C.LogLevelInfo)
+		_, _, _ = b.EditMessageText("退款申请已提交！请等待审核结果。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		database.Init("refund", ctx.EffectiveUser.Id, map[string]any{
+			"telegram_charge_id": telegramPaymentChargeID,
+		})
+	} else {
+		log.Log(fmt.Sprintf("User %d failed to apply for refund: unknown error", ctx.EffectiveUser.Id), C.LogLevelError)
+		_, _, _ = b.EditMessageText("申请退款失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})

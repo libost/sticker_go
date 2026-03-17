@@ -3,9 +3,10 @@ package constants
 import "time"
 
 const (
-	CacheDir   = "./cache/"
-	ConfigFile = "./config.yaml"
-	LogDir     = "./logs/"
+	CacheDir     = "./cache/"
+	ConfigFile   = "./config.yaml"
+	LogDir       = "./logs/"
+	RefundPeriod = 7 // 退款周期，默认为7天
 )
 
 type LogLevel struct {
@@ -56,6 +57,15 @@ var DefaultConfig struct {
 		Username string `yaml:"username,omitempty"`
 		Password string `yaml:"password,omitempty"`
 	} `yaml:"proxy,omitempty"`
+	Donation struct {
+		Enabled        bool   `yaml:"enabled"`
+		Title          string `yaml:"title"`
+		Description    string `yaml:"description"`
+		AmountRestrict struct {
+			Min int `yaml:"min"`
+			Max int `yaml:"max"`
+		} `yaml:"amount_restrict,omitempty"`
+	} `yaml:"donation,omitempty"`
 	Misc struct {
 		Timezone string `yaml:"timezone"`
 	} `yaml:"misc,omitempty"`

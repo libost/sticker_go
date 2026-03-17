@@ -125,6 +125,36 @@ func toUsageInt(other map[string]any) (int, error) {
 	}
 }
 
+func logIntoDonateLogs(conn *sql.DB, id int64, amount int64, payload string) error {
+	_, err := conn.Exec(
+		"INSERT INTO DONATION_LOGS (user_id, amount, timestamp, payload, telegram_payment_charge_id, provider_payment_charge_id) VALUES (?, ?, ?, ?, ?, ?)",
+		id,
+		amount,
+		time.Now().Unix(),
+		payload,
+		"pending", // 这里的 Telegram 支付交易 ID 需要在实际处理支付成功的回调时更新
+		"pending", // 这里的支付提供商交易 ID 需要在实际处理支付成功的回调时更新
+	)
+	return err
+}
+
+func logIntoDonateLogsSuccess(conn *sql.DB, id int64, payload string, telegramChargeID string, providerChargeID string) error {
+	_, err := conn.Exec(
+		"UPDATE DONATION_LOGS SET telegram_payment_charge_id = ?, provider_payment_charge_id = ? WHERE payload = ?",
+		telegramChargeID,
+		providerChargeID,
+		payload,
+	)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Exec(
+		"UPDATE USERPOOL SET user_group = 'sponsor' WHERE user_id = ? AND user_group != 'admin'",
+		id,
+	)
+	return err
+}
+
 func Init(request string, id int64, other map[string]any) (map[string]any, error) {
 	conn, err := getDB()
 	if err != nil {
@@ -254,6 +284,151 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 		data["exists"] = true
 		data["usage"] = float64(0)
 		data["last_cycle_starts_at"] = float64(time.Now().Unix())
+		return data, nil
+	case "donateInit":
+		if id <= 0 {
+			return data, nil
+		}
+		amount, ok := other["amount"].(int64)
+		if !ok {
+			return nil, fmt.Errorf("missing amount")
+		}
+		payload, ok := other["payload"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing payload")
+		}
+		if err := logIntoDonateLogs(conn, id, amount, payload); err != nil {
+			return nil, err
+		}
+		return data, nil
+	case "donateSuccess":
+		if id <= 0 {
+			return data, nil
+		}
+		payload, ok := other["payload"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing payload")
+		}
+		telegramChargeID, ok := other["telegram_charge_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing telegram_charge_id")
+		}
+		providerChargeID, ok := other["provider_charge_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing provider_charge_id")
+		}
+		if err := logIntoDonateLogsSuccess(conn, id, payload, telegramChargeID, providerChargeID); err != nil {
+			return nil, err
+		}
+		_, err = conn.Exec(
+			"UPDATE DONATION_LOGS SET telegram_payment_charge_id = ?, provider_payment_charge_id = ?, timestamp = ?, status = 'success' WHERE payload = ?",
+			telegramChargeID,
+			providerChargeID,
+			time.Now().Unix(),
+			payload,
+		)
+		return data, nil
+	case "refund":
+		if id <= 0 {
+			return data, nil
+		}
+		telegramChargeID, ok := other["telegram_charge_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing telegram_charge_id")
+		}
+		_, err = conn.Exec(
+			"UPDATE DONATION_LOGS SET status = 'refunded' WHERE telegram_payment_charge_id = ?",
+			telegramChargeID,
+		)
+		if err != nil {
+			return data, err
+		}
+		// 检查该用户是否仍有成功捐赠；如果没有则将其从 sponsor 降级为 user。
+		var successCount int64
+		err = conn.QueryRow(
+			"SELECT COUNT(1) FROM DONATION_LOGS WHERE user_id = ? AND status = 'success'",
+			id,
+		).Scan(&successCount)
+		if err != nil {
+			return data, err
+		}
+		if successCount == 0 {
+			_, err = conn.Exec(
+				"UPDATE USERPOOL SET user_group = 'user' WHERE user_id = ? AND user_group = 'sponsor'",
+				id,
+			)
+			if err != nil {
+				return data, err
+			}
+		}
+		return data, nil
+	case "getUserDonations":
+		if id <= 0 {
+			return data, nil
+		}
+		rows, err := conn.Query(
+			"SELECT amount, timestamp, payload, telegram_payment_charge_id, provider_payment_charge_id, status FROM DONATION_LOGS WHERE user_id = ? AND status = 'success' ORDER BY timestamp DESC",
+			id,
+		)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		donations := []map[string]any{}
+		for rows.Next() {
+			var amount int64
+			var timestamp int64
+			var payload string
+			var telegramChargeID string
+			var providerChargeID string
+			var status string
+			if err := rows.Scan(&amount, &timestamp, &payload, &telegramChargeID, &providerChargeID, &status); err != nil {
+				return nil, err
+			}
+			donation := map[string]any{
+				"amount":                     amount,
+				"timestamp":                  timestamp,
+				"payload":                    payload,
+				"telegram_payment_charge_id": telegramChargeID,
+				"provider_payment_charge_id": providerChargeID,
+				"status":                     status,
+			}
+			donations = append(donations, donation)
+		}
+		data["donations"] = donations
+		return data, nil
+	case "get_all_donates":
+		rows, err := conn.Query(
+			"SELECT user_id, amount, timestamp, payload, telegram_payment_charge_id, provider_payment_charge_id, status FROM DONATION_LOGS ORDER BY timestamp DESC",
+		)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		donates := []map[string]any{}
+		for rows.Next() {
+			var userID int64
+			var amount int64
+			var timestamp int64
+			var payload string
+			var telegramChargeID string
+			var providerChargeID string
+			var status string
+			if err := rows.Scan(&userID, &amount, &timestamp, &payload, &telegramChargeID, &providerChargeID, &status); err != nil {
+				return nil, err
+			}
+			donate := map[string]any{
+				"user_id":                    userID,
+				"amount":                     amount,
+				"timestamp":                  timestamp,
+				"payload":                    payload,
+				"telegram_payment_charge_id": telegramChargeID,
+				"provider_payment_charge_id": providerChargeID,
+				"status":                     status,
+			}
+			donates = append(donates, donate)
+		}
+		data["donates"] = donates
 		return data, nil
 	default:
 		return nil, fmt.Errorf("unsupported request: %s", request)

@@ -45,6 +45,15 @@ type Config struct {
 		Username string `yaml:"username,omitempty"`
 		Password string `yaml:"password,omitempty"`
 	} `yaml:"proxy,omitempty"`
+	Donation struct {
+		Enabled        bool   `yaml:"enabled" default:"false"`
+		Title          string `yaml:"title" default:"支持开发"`
+		Description    string `yaml:"description" default:"如果你喜欢这个项目，欢迎通过以下方式支持开发！"`
+		AmountRestrict struct {
+			Min int `yaml:"min" default:"1"`
+			Max int `yaml:"max" default:"10000"`
+		} `yaml:"amount_restrict,omitempty"`
+	} `yaml:"donation,omitempty"`
 	Misc struct {
 		Timezone string `yaml:"timezone" default:"Asia/Shanghai"`
 	} `yaml:"misc,omitempty"`
