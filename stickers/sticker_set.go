@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"libost/sticker_go/config"
-	C "libost/sticker_go/constants"
-	"libost/sticker_go/database"
-	"libost/sticker_go/log"
-	"libost/sticker_go/utils"
+	"github.com/libost/sticker_go/config"
+	C "github.com/libost/sticker_go/constants"
+	"github.com/libost/sticker_go/database"
+	"github.com/libost/sticker_go/log"
+	"github.com/libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )

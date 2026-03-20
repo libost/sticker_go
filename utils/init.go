@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	C "libost/sticker_go/constants"
+	C "github.com/libost/sticker_go/constants"
 
 	"github.com/goccy/go-yaml"
 )

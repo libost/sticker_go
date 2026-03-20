@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"libost/sticker_go/config"
-	C "libost/sticker_go/constants"
+	"github.com/libost/sticker_go/config"
+	C "github.com/libost/sticker_go/constants"
 )
 
 func Log(message string, level C.LogLevel) {

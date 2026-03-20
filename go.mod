@@ -1,4 +1,4 @@
-module libost/sticker_go
+module github.com/libost/sticker_go
 
 go 1.25.0
 

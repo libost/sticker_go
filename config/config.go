@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	C "libost/sticker_go/constants"
+	C "github.com/libost/sticker_go/constants"
 
 	"github.com/creasty/defaults"
 	"github.com/goccy/go-yaml"
