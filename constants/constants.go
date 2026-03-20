@@ -9,6 +9,10 @@ const (
 	RefundPeriod = 7 // 退款周期，默认为7天
 )
 
+var (
+	AcceptedPorts = []int{80, 443, 88, 8443} // 可接受的监听端口列表
+)
+
 type LogLevel struct {
 	Level  string
 	Number int
@@ -47,7 +51,12 @@ var DefaultConfig struct {
 		NginxEnabled bool   `yaml:"nginx_enabled"`
 		URL          string `yaml:"url,omitempty"`
 		Port         int    `yaml:"port"`
-		Secret       string `yaml:"secret,omitempty"`
+		Cert         struct {
+			SelfSigned bool   `yaml:"self-signed"`
+			CertPath   string `yaml:"cert_path,omitempty"`
+			KeyPath    string `yaml:"key_path,omitempty"`
+		} `yaml:"cert,omitempty"`
+		Secret string `yaml:"secret,omitempty"`
 	} `yaml:"webhook,omitempty"`
 	Proxy struct {
 		Enabled  bool   `yaml:"enabled"`

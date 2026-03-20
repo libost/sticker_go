@@ -35,7 +35,12 @@ type Config struct {
 		NginxEnabled bool   `yaml:"nginx_enabled" default:"false"`
 		URL          string `yaml:"url,omitempty"`
 		Port         int    `yaml:"port" default:"8080"`
-		Secret       string `yaml:"secret,omitempty"`
+		Cert         struct {
+			SelfSigned bool   `yaml:"self-signed" default:"false"`
+			CertPath   string `yaml:"cert_path,omitempty"`
+			KeyPath    string `yaml:"key_path,omitempty"`
+		} `yaml:"cert,omitempty"`
+		Secret string `yaml:"secret,omitempty"`
 	} `yaml:"webhook,omitempty"`
 	Proxy struct {
 		Enabled  bool   `yaml:"enabled" default:"false"`
@@ -56,6 +61,7 @@ type Config struct {
 	} `yaml:"donation,omitempty"`
 	Misc struct {
 		Timezone string `yaml:"timezone" default:"Asia/Shanghai"`
+		//SelfUse  bool   `yaml:"self_use" default:"false"`
 	} `yaml:"misc,omitempty"`
 }
 
@@ -71,6 +77,21 @@ func loadConfig(configPath string) (*Config, error) {
 	err = yaml.Unmarshal(data, cf)
 	if err != nil {
 		return nil, err
+	}
+	if cf.General.Limit <= 0 {
+		cf.General.Limit = 100
+	}
+	if cf.General.LimitPerPack <= 0 {
+		cf.General.LimitPerPack = 100
+	}
+	if cf.Cache.ExpireHours <= 0 && cf.Cache.Enabled {
+		cf.Cache.ExpireHours = 1
+	}
+	if cf.Cache.SizeLimitMB <= 0 && cf.Cache.Enabled {
+		cf.Cache.SizeLimitMB = 500
+	}
+	if cf.Log.ExpireDays <= 0 {
+		cf.Log.ExpireDays = 7
 	}
 	return cf, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net"
 	"os"
 	"strings"
@@ -43,12 +44,6 @@ func allPreCheckouts(pq *gotgbot.PreCheckoutQuery) bool {
 
 func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	pq := ctx.PreCheckoutQuery
-
-	// 在这里可以检查库存、数据库状态等
-	// log.Printf("收到支付预检，订单ID: %s, 金额: %d %s", pq.InvoicePayload, pq.TotalAmount, pq.Currency)
-
-	// 必须在 10 秒内调用 AnswerPreCheckoutQuery
-	// 如果一切 OK，第一个参数传 true
 	cf, err := config.Init()
 	if !cf.Donation.Enabled {
 		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
@@ -206,12 +201,29 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	}
-
+	cf, err := config.Init()
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to load config after downloading sticker pack: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		return err
+	}
+	usergroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to retrieve user group after downloading sticker pack: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		return err
+	}
+	displayText := "✅ 贴纸包下载完成！"
+	if usergroup["user_group"] != "sponsor" && cf.Donation.Enabled {
+		n := rand.IntN(10) + 1
+		if n <= 2 { // 20% 的概率提示用户支持开发
+			displayText += "\n <blockquote>如果你喜欢这个项目，欢迎使用命令 /donate 支持开发</blockquote>"
+		}
+	}
 	_, _, _ = b.EditMessageText(
-		"贴纸包下载完成！",
+		displayText,
 		&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			ParseMode: "HTML",
 		},
 	)
 	log.Log(fmt.Sprintf("User %d successfully downloaded sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
