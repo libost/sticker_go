@@ -9,6 +9,7 @@ require github.com/goccy/go-yaml v1.19.2
 require (
 	github.com/creasty/defaults v1.8.0
 	github.com/google/uuid v1.6.0
+	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/image v0.37.0
 	golang.org/x/net v0.52.0
 	modernc.org/sqlite v1.46.2

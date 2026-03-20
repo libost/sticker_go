@@ -124,8 +124,15 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		displayText = "请在私聊中使用这些命令哦！\n\n" + displayText
 	}
+	cf, err := config.Init()
+	if err != nil {
+		return err
+	}
+	if cf.Donation.Enabled {
+		displayText += "\n/donate - 向我们捐赠"
+	}
 
-	_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
+	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -222,9 +229,10 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		runtime.ReadMemStats(&mem)
 		memoryBytes = mem.Alloc
 	}
-	info := fmt.Sprintf("管理员统计信息:\n总用户数: %d\n总使用次数: %d\n当前缓存占用: %d MB\n当前内存使用: %d MB\n当前日志占用: %d MB",
+	info := fmt.Sprintf("管理员统计信息:\n总用户数: %d\n总使用次数: %d\n近一周使用次数: %d\n当前缓存占用: %d MB\n当前内存使用: %d MB\n当前日志占用: %d MB",
 		int(stats["stats"].(map[string]any)["total_users"].(float64)),
 		int(stats["stats"].(map[string]any)["total_usage"].(float64)),
+		int(stats["stats"].(map[string]any)["weekly_usage"].(float64)),
 		cacheSize/1024/1024,
 		memoryBytes/1024/1024,
 		logSize/1024/1024)
@@ -489,7 +497,7 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		"/clearcache - 清空缓存文件\n" +
 		"/setcommands - 设置机器人命令列表\n" +
 		"/clearlogs - 清除日志文件\n" +
-		"/getalldonates - 查看所有捐赠记录\n" +
+		"/donaterecord - 查看所有捐赠记录\n" +
 		"/restart - 重启机器人\n" +
 		"/shutdown - 关闭机器人"
 	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)

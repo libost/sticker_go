@@ -229,6 +229,13 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 		if err != nil {
 			return nil, err
 		}
+		weekday := time.Now().Weekday().String()
+		_, err = conn.Exec(
+			"INSERT INTO STATISTICS (weekday, daily_usage_count) VALUES (?, ?) ON CONFLICT(weekday) DO UPDATE SET daily_usage_count = daily_usage_count + ?",
+			weekday,
+			usage,
+			usage,
+		)
 		data["exists"] = true
 		return data, nil
 	case "user_group":
@@ -259,6 +266,11 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 			"total_users": float64(totalUsers),
 			"total_usage": float64(totalUsage),
 		}
+		var weeklyUsage int64
+		if err := conn.QueryRow("SELECT COALESCE(SUM(daily_usage_count), 0) FROM STATISTICS").Scan(&weeklyUsage); err != nil {
+			return nil, err
+		}
+		data["stats"].(map[string]any)["weekly_usage"] = float64(weeklyUsage)
 		return data, nil
 	case "set_group":
 		if id <= 0 {
@@ -429,6 +441,37 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 			donates = append(donates, donate)
 		}
 		data["donates"] = donates
+		return data, nil
+	case "clearWeeklyStats":
+		tx, err := conn.Begin()
+		if err != nil {
+			return nil, err
+		}
+		_, err = tx.Exec("DELETE FROM STATISTICS")
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+		_, err = tx.Exec("INSERT INTO LAST_CLEANUP (id, last_cleanup_at) VALUES (1, unixepoch()) ON CONFLICT(id) DO UPDATE SET last_cleanup_at = unixepoch()")
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return data, nil
+	case "getLastCleanupTime":
+		var lastCleanup int64
+		err := conn.QueryRow("SELECT last_cleanup_at FROM LAST_CLEANUP WHERE id = 1").Scan(&lastCleanup)
+		if err == sql.ErrNoRows {
+			data["last_cleanup_at"] = float64(0)
+			return data, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		data["last_cleanup_at"] = float64(lastCleanup)
 		return data, nil
 	default:
 		return nil, fmt.Errorf("unsupported request: %s", request)

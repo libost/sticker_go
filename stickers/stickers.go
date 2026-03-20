@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"libost/sticker_go/config"
 	C "libost/sticker_go/constants"
@@ -72,9 +74,11 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	limit := cf.General.Limit
-	if int(currentUsage["usage"].(float64)) >= limit {
-		_, err = ctx.EffectiveMessage.Reply(b, fmt.Sprintf("你已达到使用限制，每周期最多使用 %d 次。", limit), nil)
+	if int(currentUsage["usage"].(float64)) >= limit && (int(currentUsage["last_cycle_starts_at"].(float64))+24*3600) >= int(time.Now().Unix()) {
+		_, err = ctx.EffectiveMessage.Reply(b, fmt.Sprintf("你已达到使用限制，每周期最多使用 %d 次。\n详细信息请查看 /usage", limit), nil)
 		return err
+	} else if (int(currentUsage["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
+		database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
 	}
 	sentMsg, err := ctx.EffectiveMessage.Reply(b, "正在处理你的贴纸，请稍候...", nil)
 	if err != nil {
@@ -109,10 +113,22 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err = fileSend.Close(); err != nil {
 		return err
 	}
+	usergroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	displayText := "✅ 处理完成！"
+	if usergroup["user_group"] != "sponsor" && cf.Donation.Enabled {
+		n := rand.IntN(10) + 1
+		if n <= 2 { // 20% 的概率提示用户支持开发
+			displayText += "\n <blockquote>如果你喜欢这个项目，欢迎使用命令 /donate 支持开发</blockquote>"
+		}
+	}
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
-	_, _, _ = b.EditMessageText("处理完成！", &gotgbot.EditMessageTextOpts{
+	_, _, _ = b.EditMessageText(displayText, &gotgbot.EditMessageTextOpts{
 		ChatId:      sentMsg.Chat.Id,
 		MessageId:   sentMsg.MessageId,
+		ParseMode:   "HTML",
 		ReplyMarkup: inlineKeyboard,
 	})
 	log.Log(fmt.Sprintf("User %d successfully processed sticker %s", ctx.EffectiveUser.Id, sticker.FileId), C.LogLevelInfo)

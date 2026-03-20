@@ -22,7 +22,8 @@ cp env.config.yaml config.yaml
 go run main.go
 ```
 
-或者，直接从Release页面下载编译好的二进制文件，解压后运行即可。  不要忘记把 `config.yaml` 文件放在同一目录下。
+或者，直接从Release页面下载编译好的二进制文件，解压后运行即可。  
+不要忘记把 `config.yaml` 文件放在同一目录下。
 
 启动后，在Telegram中输入 `/setadmin <config.yaml中设置的管理员密钥>` 来设置管理员权限，不要泄露管理员密钥给其他人。  
 使用命令 `/admin` 来查看管理员功能列表。
@@ -37,7 +38,7 @@ go run main.go
 如果你希望使用 Webhook 模式，请确保你的服务器能够接受外部请求（i.e., 拥有公网 IP 和可以从外部访问的 443 端口），并在 `config.yaml` 中正确配置 `webhook` 字段。启用 Webhook 后，Bot 将通过 Webhook 接收更新，而不是轮询 Telegram 服务器。  
 `nginx_enabled` 字段用于配置是否启用 Nginx 反向代理，如果启用，请确保 Nginx 已正确配置以转发请求到 Bot。  
 
-> `nginx_enabled` 真正的作用是告诉 Bot 将监听地址改为本机环回地址，建议在生产环境中启用 Nginx 反向代理以提高安全性和性能。  
+> 注意：Telegram 要求 Webhook URL 必须使用 HTTPS 协议，并且证书必须是由受信任的 CA 颁发的，或者是自签名证书（需要在配置中开启 `cert.self-signed`）。如果你使用 Nginx 反向代理，建议在 Nginx 中配置 SSL 证书，这样 Bot 就不需要处理 HTTPS 了，Nginx 会将请求转发到 Bot 的 HTTP 端口。  
 
 Nginx 反向代理配置示例：
 ```nginx
@@ -96,14 +97,29 @@ webhook:
     port: 8080
     secret: "your_webhook_secret" # 可选，设置后会在 Telegram 发送的请求中验证 X-Telegram-Bot-Api-Secret-Token 头部
 ```
+如果你不使用 Nginx，且 Webhook HTTPS 证书是自签名证书，需要在配置中开启 `cert.self-signed`，程序会在调用 `setWebhook` 时自动上传证书给 Telegram：
+```yaml
+webhook:
+  enabled: true
+  nginx_enabled: false
+  url: "https://example.com/webhook"
+  port: 8443
+  cert:
+    self-signed: true
+    cert_path: "./cert.pem"
+    key_path: "./key.pem"
+  secret: "your_webhook_secret"
+```
 经验证兼容CDN，测试时使用Cloudflare的CDN。
 ### TGS 支持
 如果你希望支持 TGS 格式的贴纸，请确保你的服务器上安装了 Docker，并且拉取了 [`edasriyan/lottie-to-gif`](https://hub.docker.com/r/edasriyan/lottie-to-gif) 镜像。启用 TGS 支持后，Bot 将能够将 TGS 格式的贴纸转换为 GIF 格式。  
 如果关闭 TGS 支持，Bot 将无法处理 TGS 格式的贴纸，并且相关的贴纸将依照原样返回（.tgs格式）。  
-警告：启用 TGS 支持会增加系统资源的使用，尤其是在处理大量贴纸时，请确保你的服务器有足够的资源来运行 Docker 和转换过程。
+
+> 警告：启用 TGS 支持会增加系统资源的使用，尤其是在处理大量贴纸时，请确保你的服务器有足够的资源来运行 Docker 和转换过程。
 ### 贴纸包分卷
 如果一个贴纸包包含的贴纸的总大小超过了 Telegram 的限制（通常是 50 MB），Bot 将自动将贴纸包分割成多个 ZIP 文件，每个文件的大小不超过限制。 这确保了用户能够成功下载和使用贴纸包，而不会遇到 Telegram 的文件大小限制问题。  
-注意：在设计时考虑到了中国大陆服务器的网络上行带宽（通常是 3-5 Mbps），因此发送超时被设置为 3 分钟，以确保大文件能够成功上传，如果频繁遇到超时问题，可以考虑增加服务器的上行带宽或者调整发送超时设置（需重编译）。
+
+> 注意：在设计时考虑到了中国大陆服务器的网络上行带宽（通常是 3-5 Mbps），因此发送超时被设置为 3 分钟，以确保大文件能够成功上传，如果频繁遇到超时问题，可以考虑增加服务器的上行带宽或者调整发送超时设置（需重编译）。
 ### 后台运行
 建议在生产环境中使用 `nohup` 或者 `screen` 等工具来后台运行 Bot，以确保它在关闭终端后仍然能够继续运行。 例如：
 ```bash
