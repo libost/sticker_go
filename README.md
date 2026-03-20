@@ -1,4 +1,9 @@
 # Sticker Bot by libost
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/libost/sticker_go)
+![GitHub Release](https://img.shields.io/github/v/release/libost/sticker_go)
+![GitHub License](https://img.shields.io/github/license/libost/sticker_go)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/libost/sticker_go/release.yml)  
+
 一个基于 Go 语言开发的 Telegram 贴纸提取和转换 Bot，支持单张贴纸和贴纸包的提取，并且能够将 TGS 格式的贴纸转换为 GIF 格式。  
 示例机器人：https://t.me/downloaderstickerbot
 ## 前置条件
