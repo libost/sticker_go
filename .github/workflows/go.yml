@@ -68,7 +68,7 @@ jobs:
 
       - name: Build
         shell: bash
-        run: go build -ldflags "-X libost/sticker_go/version.Version=${{ github.ref_name }} -X libost/sticker_go/version.BuildTime=${{ steps.meta.outputs.build_time }} -X libost/sticker_go/version.GitCommit=${{ steps.meta.outputs.short_sha }} -X libost/sticker_go/version.Branch=${{ steps.meta.outputs.branch }}" -v -o sticker_go-${{ matrix.os}}${{ matrix.suffix }}  # 这里换成你语言的编译命令
+        run: go build -ldflags "-X github.com/libost/sticker_go/version.Version=${{ github.ref_name }} -X github.com/libost/sticker_go/version.BuildTime=${{ steps.meta.outputs.build_time }} -X github.com/libost/sticker_go/version.GitCommit=${{ steps.meta.outputs.short_sha }} -X github.com/libost/sticker_go/version.Branch=${{ steps.meta.outputs.branch }}" -v -o sticker_go-${{ matrix.os}}${{ matrix.suffix }}  # 这里换成你语言的编译命令
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -1,14 +1,18 @@
 package callback
 
 import (
+	"bufio"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"strings"
 	"time"
@@ -133,6 +137,39 @@ func sendZipDocumentWithRetry(b *gotgbot.Bot, userID int64, zipPath string) erro
 	}
 
 	return lastErr
+}
+
+func parseSHA256FromChecksums(checksumsData []byte, binaryName string) ([]byte, error) {
+	scanner := bufio.NewScanner(strings.NewReader(string(checksumsData)))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		hashHex := fields[0]
+		fileName := strings.TrimPrefix(fields[1], "*")
+		if path.Base(strings.ReplaceAll(fileName, "\\", "/")) != binaryName {
+			continue
+		}
+
+		hash, err := hex.DecodeString(hashHex)
+		if err != nil {
+			return nil, fmt.Errorf("invalid SHA256 hex for %s: %w", binaryName, err)
+		}
+		return hash, nil
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return nil, fmt.Errorf("checksum for %s not found", binaryName)
 }
 
 func removeZipFiles(zipPaths []string) {
@@ -378,7 +415,46 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		})
 		return fmt.Errorf("failed to download latest release asset: HTTP %d", resp.StatusCode)
 	}
-	err = selfupdate.Apply(resp.Body, selfupdate.Options{})
+	checkSumURL := fmt.Sprintf("https://github.com/%s/%s/releases/latest/download/checksums.txt", C.Owner, C.Repo)
+	checkSumResp, err := http.Get(checkSumURL)
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to download checksums file: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return err
+	}
+	defer checkSumResp.Body.Close()
+	if checkSumResp.StatusCode != http.StatusOK {
+		log.Log(fmt.Sprintf("User %d failed to download checksums file: HTTP %d", ctx.EffectiveUser.Id, checkSumResp.StatusCode), C.LogLevelError)
+		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return fmt.Errorf("failed to download checksums file: HTTP %d", checkSumResp.StatusCode)
+	}
+	checksumsData, err := io.ReadAll(checkSumResp.Body)
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to read checksums file: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return err
+	}
+
+	checksum, err := parseSHA256FromChecksums(checksumsData, execname)
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to parse checksum for %s: %v", ctx.EffectiveUser.Id, execname, err), C.LogLevelError)
+		_, _, _ = b.EditMessageText("下载更新失败：未找到对应文件的校验值。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return err
+	}
+
+	err = selfupdate.Apply(resp.Body, selfupdate.Options{Checksum: checksum})
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to apply update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
 		_, _, _ = b.EditMessageText("应用更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
