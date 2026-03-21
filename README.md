@@ -157,5 +157,14 @@ donation:
     max: 10000 # 最大捐赠金额，单位为 Telegram Star
   # 受限于 Apple 和 Google 的政策，不涉及实物的交易不允许使用法币支付，因此暂时只接受 Telegram Star 捐赠
 ```
+### 管理员功能
+管理员可以使用 `/admin` 命令来查看管理员功能列表，包括但不限于：
+- `/getstats`：查看 Bot 的使用统计信息。
+- `/reset`：重置当前用户的使用统计信息。
+- `/upgrade`：检查并应用 Bot 的更新（自版本v1.8.1起）。
+- `/restart`：重启 Bot。
+- `/shutdown`：关闭 Bot。  
+
+管理员功能需要在 `config.yaml` 中设置管理员密钥，并且只有使用正确的管理员密钥的用户才能访问这些功能。 请务必保护好管理员密钥，避免泄露给其他人。
 ## 许可证
 本项目采用 MIT 许可证，详情请参阅 [LICENSE](LICENSE) 文件。
