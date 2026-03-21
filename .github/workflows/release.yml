@@ -66,11 +66,12 @@ jobs:
           merge-multiple: true
 
       - name: Calculate checksums
-        working-directory: ./all_binaries
         run: |
-          cd ./all_binaries
-          sha256sum * > checksums.txt
-          cat checksums.txt
+          ls -la
+          test -d ./all_binaries || { echo "all_binaries not found"; exit 1; }
+          ls -la ./all_binaries
+          sha256sum ./all_binaries/* > ./all_binaries/checksums.txt
+          cat ./all_binaries/checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
