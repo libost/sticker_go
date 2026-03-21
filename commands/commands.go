@@ -1,8 +1,11 @@
 package commands
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
@@ -45,6 +48,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("donate", donate))
 	dispatcher.AddHandler(handlers.NewCommand("donaterecord", getAllDonates))
 	dispatcher.AddHandler(handlers.NewCommand("refund", refund))
+	dispatcher.AddHandler(handlers.NewCommand("upgrade", upgrade))
 }
 
 func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) {
@@ -498,6 +502,7 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		"/setcommands - 设置机器人命令列表\n" +
 		"/clearlogs - 清除日志文件\n" +
 		"/donaterecord - 查看所有捐赠记录\n" +
+		"/upgrade - 更新机器人\n" +
 		"/restart - 重启机器人\n" +
 		"/shutdown - 关闭机器人"
 	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
@@ -755,6 +760,92 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		ReplyMarkup: &gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: InlineKeyboard,
 		},
+	})
+	return err
+}
+
+type GitHubRelease struct {
+	TagName string `json:"tag_name"`
+}
+
+func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /upgrade 命令，忽略群聊和频道中的命令
+	}
+	isAdmin, err := isAdminUser(ctx.EffectiveUser.Id)
+	if err != nil {
+		return err
+	}
+	if !isAdmin {
+		_, err := ctx.EffectiveMessage.Reply(b, "只有管理员才能使用此命令。", nil)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if V.Version == "dev" {
+		_, err := ctx.EffectiveMessage.Reply(b, "当前版本为开发版本，无法检查更新。", nil)
+		return err
+	}
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", C.Owner, C.Repo)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, _ := http.NewRequest("GET", url, nil)
+
+	// 重要：GitHub API 要求必须设置 User-Agent
+	req.Header.Set("User-Agent", "go-github-release-checker")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		_, err := ctx.EffectiveMessage.Reply(b, "无法获取最新版本信息，请稍后再试。", nil)
+		if err != nil {
+			return err
+		}
+		log.Log("Failed to fetch latest release information from GitHub.", C.LogLevelError)
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var release GitHubRelease
+	if err := json.Unmarshal(body, &release); err != nil {
+		_, err := ctx.EffectiveMessage.Reply(b, "无法解析最新版本信息，请稍后再试。", nil)
+		if err != nil {
+			return err
+		}
+		log.Log("Failed to parse latest release information from GitHub.", C.LogLevelError)
+		return err
+	}
+	latestVersion := release.TagName
+
+	if latestVersion == V.Version {
+		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("当前已经是最新版本了！版本号: <a href='%s'>%s</a>", C.RepoURL, V.Version), &gotgbot.SendMessageOpts{
+			ParseMode: "HTML",
+		})
+		return err
+	}
+	displayText := fmt.Sprintf("有新版本可用！最新版本: <a href='%s'>%s</a>", C.RepoURL, latestVersion)
+	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:         "立即更新",
+					CallbackData: "upgrade_true",
+				},
+				{
+					Text:         "稍后再说",
+					CallbackData: "upgrade_false",
+				},
+			},
+		},
+	}
+	_, err = ctx.EffectiveMessage.Reply(b, displayText+"\n是否更新？", &gotgbot.SendMessageOpts{
+		ParseMode:   "HTML",
+		ReplyMarkup: inlineKeyboard,
 	})
 	return err
 }
