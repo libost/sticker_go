@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net"
+	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -21,6 +24,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
+	"github.com/minio/selfupdate"
 )
 
 const (
@@ -34,6 +38,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("clear_logs_"), clearLogsHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("shutdown_"), shutdownHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("refund_apply_"), refundApplyHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("upgrade_"), upgradeHandler))
 	dispatcher.AddHandler(handlers.NewPreCheckoutQuery(allPreCheckouts, preCheckoutHandler))
 	dispatcher.AddHandler(handlers.NewMessage(message.SuccessfulPayment, successHandler))
 }
@@ -325,5 +330,88 @@ func refundApplyHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
 	}
+	return nil
+}
+
+func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	callbackData := ctx.CallbackQuery.Data
+	// 先回应回调查询，避免客户端超时
+	_, err := ctx.CallbackQuery.Answer(b, nil)
+	if err != nil {
+		return err
+	}
+	if callbackData == "upgrade_false" {
+		log.Log(fmt.Sprintf("User %d cancelled upgrade", ctx.EffectiveUser.Id), C.LogLevelInfo)
+		_, _, _ = b.EditMessageText("已取消更新。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return nil
+	}
+	_, _, err = b.EditMessageText("正在更新，请稍候...", &gotgbot.EditMessageTextOpts{
+		ChatId:    ctx.EffectiveChat.Id,
+		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+	})
+	if err != nil {
+		return err
+	}
+	var execname string
+	switch runtime.GOOS {
+	case "windows":
+		execname = "sticker_go_windows.exe"
+	case "darwin":
+		execname = "sticker_go_macos"
+	case "linux":
+		execname = "sticker_go_linux"
+	}
+	downloadURL := fmt.Sprintf("https://github.com/%s/%s/releases/latest/download/%s", C.Owner, C.Repo, execname)
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Log(fmt.Sprintf("User %d failed to download latest release asset: HTTP %d", ctx.EffectiveUser.Id, resp.StatusCode), C.LogLevelError)
+		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return fmt.Errorf("failed to download latest release asset: HTTP %d", resp.StatusCode)
+	}
+	err = selfupdate.Apply(resp.Body, selfupdate.Options{})
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to apply update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		_, _, _ = b.EditMessageText("应用更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return err
+	}
+	log.Log(fmt.Sprintf("User %d successfully updated the bot", ctx.EffectiveUser.Id), C.LogLevelInfo)
+	_, _, _ = b.EditMessageText("更新成功！正在重启...", &gotgbot.EditMessageTextOpts{
+		ChatId:    ctx.EffectiveChat.Id,
+		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+	})
+	_, exists := os.LookupEnv("INVOCATION_ID")
+	if exists {
+		os.Exit(0)
+		return nil
+	}
+	path, err := os.Executable()
+	cmd := exec.Command(path, os.Args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Env = os.Environ()
+	err = cmd.Start()
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to restart the bot after update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		_, _, _ = b.EditMessageText("重启失败，请手动重启机器人。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return err
+	}
+	os.Exit(0)
 	return nil
 }

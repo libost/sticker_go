@@ -9,6 +9,12 @@ const (
 	RefundPeriod = 7 // 退款周期，默认为7天
 )
 
+const (
+	Owner   = "libost"
+	Repo    = "sticker_go"
+	RepoURL = "https://github.com/libost/sticker_go/releases/latest"
+)
+
 var (
 	AcceptedPorts = []int{80, 443, 88, 8443} // 可接受的监听端口列表
 )

@@ -6,3 +6,4 @@ logs/
 sticker_go.db
 config.yaml
 *.exe
+*.old
