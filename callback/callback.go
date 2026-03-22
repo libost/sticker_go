@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -474,7 +475,8 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil
 	}
 	path, err := os.Executable()
-	cmd := exec.Command(path, os.Args[1:]...)
+	restartPath := resolveRestartExecutablePath(path)
+	cmd := exec.Command(restartPath, os.Args[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -490,4 +492,26 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	os.Exit(0)
 	return nil
+}
+
+func resolveRestartExecutablePath(execPath string) string {
+	base := filepath.Base(execPath)
+
+	// minio/selfupdate may rename the running binary to a hidden backup like ".binary.old".
+	if strings.HasPrefix(base, ".") && strings.HasSuffix(base, ".old") {
+		newBase := strings.TrimSuffix(strings.TrimPrefix(base, "."), ".old")
+		if newBase != "" {
+			return filepath.Join(filepath.Dir(execPath), newBase)
+		}
+	}
+
+	// Fallback for non-hidden backups such as "binary.old".
+	if before, ok := strings.CutSuffix(base, ".old"); ok {
+		newBase := before
+		if newBase != "" {
+			return filepath.Join(filepath.Dir(execPath), newBase)
+		}
+	}
+
+	return execPath
 }
