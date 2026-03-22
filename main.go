@@ -55,6 +55,9 @@ func main() {
 	if strings.TrimSpace(token) == "" || token == "YOUR_TOKEN_HERE" {
 		L.Log("config.yaml token is empty or still using the placeholder value", C.LogLevelFatal)
 	}
+	if cfg.General.Adminkey == "" {
+		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelFatal)
+	}
 	httpClient := &http.Client{
 		Timeout: time.Second * 10,
 	}

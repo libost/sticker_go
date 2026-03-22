@@ -13,7 +13,6 @@ func ConfigToYAML() error {
 	defaultConfig := C.DefaultConfig
 	defaultConfig.General.Limit = 100
 	defaultConfig.General.LimitPerPack = 100
-	defaultConfig.General.Adminkey = "123"
 	defaultConfig.Cache.Enabled = true
 	defaultConfig.Cache.ExpireHours = 1
 	defaultConfig.Cache.SizeLimitMB = 500
