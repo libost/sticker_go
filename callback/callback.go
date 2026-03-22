@@ -402,6 +402,16 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	case "linux":
 		execname = "sticker_go_linux"
 	}
+	currentPath, err := os.Executable()
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to get executable path before update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+		_, _, _ = b.EditMessageText("更新失败：无法确定当前程序路径。", &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		})
+		return err
+	}
+	restartPath := resolveRestartExecutablePath(currentPath)
 	downloadURL := fmt.Sprintf("https://github.com/%s/%s/releases/latest/download/%s", C.Owner, C.Repo, execname)
 	resp, err := http.Get(downloadURL)
 	if err != nil {
@@ -474,8 +484,6 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		os.Exit(0)
 		return nil
 	}
-	path, err := os.Executable()
-	restartPath := resolveRestartExecutablePath(path)
 	cmd := exec.Command(restartPath, os.Args[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
