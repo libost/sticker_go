@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	Dir        string
-	CacheDir   string
-	ConfigFile string
-	LogDir     string
+	Dir          string
+	CacheDir     string
+	ConfigFile   string
+	LogDir       string
+	DatabaseFile string
 )
 
 func init() {
@@ -30,6 +31,7 @@ func SetBaseDir(base string) {
 	CacheDir = Dir + "cache/"
 	ConfigFile = Dir + "config.yaml"
 	LogDir = Dir + "logs/"
+	DatabaseFile = Dir + "sticker_go.db"
 }
 
 const (
