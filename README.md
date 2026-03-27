@@ -131,7 +131,9 @@ webhook:
 screen -S sticker_bot
 ./sticker_go_linux
 ```
-使用组合键 `Ctrl + A` 然后 `D` 来分离屏幕会话，Bot 将继续在后台运行。 你可以使用 `screen -r sticker_bot` 来重新连接到会话。
+使用组合键 `Ctrl + A` 然后 `D` 来分离屏幕会话，Bot 将继续在后台运行。 你可以使用 `screen -r sticker_bot` 来重新连接到会话。  
+
+Linux环境下可参考[适用于Linux的systemd服务](/docs/systemd.md)
 ### 代理支持
 如果你的服务器需要通过代理访问 Telegram API，请在 `config.yaml` 中配置 `proxy` 字段，支持 HTTP 和 SOCKS5 代理。 例如：
 ```yaml

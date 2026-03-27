@@ -15,24 +15,30 @@ func Log(message string, level C.LogLevel) {
 		log.Printf("Failed to initialize config for logging: %v\n", err)
 		return
 	}
+	var systemdLevel string
 	switch cf.Log.Level {
 	case "DEBUG":
+		systemdLevel = "<7>"
 		if level.Number < C.LogLevelDebug.Number {
 			return // 当前日志级别不输出
 		}
 	case "INFO":
+		systemdLevel = "<6>"
 		if level.Number < C.LogLevelInfo.Number {
 			return
 		}
 	case "WARN":
+		systemdLevel = "<4>"
 		if level.Number < C.LogLevelWarn.Number {
 			return
 		}
 	case "ERROR":
+		systemdLevel = "<3>"
 		if level.Number < C.LogLevelError.Number {
 			return
 		}
 	case "FATAL":
+		systemdLevel = "<2>"
 		if level.Number < C.LogLevelFatal.Number {
 			return
 		}
@@ -50,24 +56,33 @@ func Log(message string, level C.LogLevel) {
 	if !isTimeRight {
 		incorrectTimeNotice = " (Current time may be incorrect due to timezone issues, check config)"
 	}
+	_, exists := os.LookupEnv("INVOCATION_ID")
 	logMessage := fmt.Sprintf("[%s] [%s] %s%s\n", timestamp, level.Level, message, incorrectTimeNotice)
-	logToFile(logMessage)
+	if exists {
+		logMessage = fmt.Sprintf("%s [%s] %s%s\n", systemdLevel, level.Level, message, incorrectTimeNotice)
+	}
+	logToFile(message, level)
 	os.Stdout.WriteString(logMessage)
 	if level == C.LogLevelFatal {
 		os.Exit(1)
 	}
 }
 
-func logToFile(message string) {
-	timestamp, _ := timeNow()
+func logToFile(message string, level C.LogLevel) {
+	timestamp, isTimeRight := timeNow()
+	var incorrectTimeNotice string
+	if !isTimeRight {
+		incorrectTimeNotice = " (Current time may be incorrect due to timezone issues, check config)"
+	}
 	logFilePath := fmt.Sprintf("%s/log_%s.log", C.LogDir, timestamp[:10]) // 每天一个日志文件，格式为 log_YYYY-MM-DD.log
+	logMessage := fmt.Sprintf("[%s] [%s] %s%s\n", timestamp, level.Level, message, incorrectTimeNotice)
 	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)
 		return
 	}
 	defer f.Close()
-	if _, err := f.WriteString(message); err != nil {
+	if _, err := f.WriteString(logMessage); err != nil {
 		fmt.Printf("Failed to write to log file: %v\n", err)
 	}
 }

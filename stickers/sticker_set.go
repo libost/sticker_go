@@ -47,8 +47,18 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		return nil, fmt.Errorf("failed to load config: %v", err)
 	}
 	packLength := len(stickerSet.Stickers)
-	if packLength > cf.General.LimitPerPack {
-		return nil, &StickerPackLimitError{PackLength: packLength, Limit: cf.General.LimitPerPack}
+	packLimit := cf.General.LimitPerPack
+	if cf.Donation.BonusEnabled {
+		userGroup, err := database.Init("user_group", uid, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user group for donation bonus: %v", err)
+		}
+		if userGroup["user_group"].(string) == "sponsor" {
+			packLimit = int(float64(packLimit) * C.DonationBonusMultiplier)
+		}
+	}
+	if packLength > packLimit {
+		return nil, &StickerPackLimitError{PackLength: packLength, Limit: packLimit}
 	}
 
 	tempDir := fmt.Sprintf("%s/%d", C.CacheDir, uid)

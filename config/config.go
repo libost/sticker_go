@@ -15,7 +15,7 @@ type Config struct {
 		Limit        int    `yaml:"limit" default:"100"`
 		LimitPerPack int    `yaml:"limit_per_pack" default:"100"`
 		Adminkey     string `yaml:"adminkey"`
-		TgsSupport   bool   `yaml:"tgs_support" default:"false"` // 是否支持 .tgs 动画贴纸，默认是 false，启用后会将 .tgs 动画贴纸转换为 GIF 格式发送，禁用后将直接发送原始 .tgs 文件
+		TgsSupport   bool   `yaml:"tgs_support" default:"false"`
 	} `yaml:"general,omitempty"`
 	Cache struct {
 		Enabled     bool `yaml:"enabled" default:"true"`
@@ -44,7 +44,7 @@ type Config struct {
 	} `yaml:"webhook,omitempty"`
 	Proxy struct {
 		Enabled  bool   `yaml:"enabled" default:"false"`
-		Type     string `yaml:"type,omitempty"` // "socks5" 或 "http"
+		Type     string `yaml:"type,omitempty"`
 		Host     string `yaml:"host,omitempty"`
 		Port     int    `yaml:"port,omitempty"`
 		Username string `yaml:"username,omitempty"`
@@ -52,6 +52,7 @@ type Config struct {
 	} `yaml:"proxy,omitempty"`
 	Donation struct {
 		Enabled        bool   `yaml:"enabled" default:"false"`
+		BonusEnabled   bool   `yaml:"bonus_enabled" default:"false"`
 		Title          string `yaml:"title" default:"支持开发"`
 		Description    string `yaml:"description" default:"如果你喜欢这个项目，欢迎通过以下方式支持开发！"`
 		AmountRestrict struct {
@@ -97,7 +98,7 @@ func loadConfig(configPath string) (*Config, error) {
 }
 
 func Init() (*Config, error) {
-	const configPath = C.ConfigFile
+	var configPath = C.ConfigFile
 	_, err := os.Stat(configPath)
 	if os.IsNotExist(err) {
 		return nil, err

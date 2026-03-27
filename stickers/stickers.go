@@ -74,8 +74,22 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	limit := cf.General.Limit
+	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if userGroup["user_group"] == "sponsor" && cf.Donation.BonusEnabled {
+		limit = int(float64(cf.General.Limit) * C.DonationBonusMultiplier) // 赞助用户的使用限制增加奖励倍数
+	}
 	if int(currentUsage["usage"].(float64)) >= limit && (int(currentUsage["last_cycle_starts_at"].(float64))+24*3600) >= int(time.Now().Unix()) {
-		_, err = ctx.EffectiveMessage.Reply(b, fmt.Sprintf("你已达到使用限制，每周期最多使用 %d 次。\n详细信息请查看 /usage", limit), nil)
+		displayText := fmt.Sprintf("⚠️ 你已达到使用限制，每周期最多使用 %d 次。\n详细信息请查看 /usage", limit)
+		if userGroup["user_group"] != "sponsor" && cf.Donation.Enabled && cf.Donation.BonusEnabled {
+			displayText += "\n\n💖 如果你喜欢这个项目，欢迎使用命令 /donate 支持开发，赞助用户的使用限制将增加奖励倍数！"
+		}
+		if userGroup["user_group"] == "sponsor" && cf.Donation.BonusEnabled {
+			displayText += "\n\n🎉 作为赞助用户，你的使用限制增加了奖励倍数！感谢你的支持！"
+		}
+		_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
 		return err
 	} else if (int(currentUsage["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
 		database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
