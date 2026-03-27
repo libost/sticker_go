@@ -185,11 +185,20 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		data["usage"] = float64(0)
 		data["last_cycle_starts_at"] = float64(time.Now().Unix() + 24*3600)
 	}
+	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
 	limit := cf.General.Limit
+	var donationBonusExplanation string
+	if userGroup["user_group"].(string) == "sponsor" && cf.Donation.BonusEnabled {
+		limit = int(float64(limit) * C.DonationBonusMultiplier)
+		donationBonusExplanation = fmt.Sprintf(" \n(捐赠奖励: %g 倍)", C.DonationBonusMultiplier)
+	}
 	remaining := max(limit-int(data["usage"].(float64)), 0)
 	nextRefresh := time.Unix(int64(data["last_cycle_starts_at"].(float64))+24*3600, 0).Format("2006-01-02 15:04:05")
-	info := fmt.Sprintf("使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s",
-		int(data["usage"].(float64)), remaining, nextRefresh)
+	info := fmt.Sprintf("使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s%s",
+		int(data["usage"].(float64)), remaining, nextRefresh, donationBonusExplanation)
 	_, err = ctx.EffectiveMessage.Reply(b, info, nil)
 	log.Log(fmt.Sprintf("User %d triggered /usage", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
@@ -635,7 +644,11 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	payloadUuid := uuid.New().String()
 	payload := fmt.Sprintf("donate_%s", payloadUuid)
-	_, err = b.SendInvoice(ctx.EffectiveUser.Id, cf.Donation.Title, cf.Donation.Description, payload, "XTR", []gotgbot.LabeledPrice{price}, &gotgbot.SendInvoiceOpts{
+	description := cf.Donation.Description
+	if cf.Donation.BonusEnabled {
+		description += fmt.Sprintf("\n\n🎁 额外奖励：使用限制提升至原有的 %g 倍", C.DonationBonusMultiplier)
+	}
+	_, err = b.SendInvoice(ctx.EffectiveUser.Id, cf.Donation.Title, description, payload, "XTR", []gotgbot.LabeledPrice{price}, &gotgbot.SendInvoiceOpts{
 		ProtectContent: true,
 	})
 	if err != nil {

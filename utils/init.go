@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	C "github.com/libost/sticker_go/constants"
 
@@ -44,11 +45,11 @@ func ConfigToYAML() error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal config to YAML: %v", err)
 	}
-	_, err = os.Create("./config.yaml")
+	err = os.MkdirAll(filepath.Dir(C.ConfigFile), 0755)
 	if err != nil {
-		return fmt.Errorf("failed to create config file: %v", err)
+		return fmt.Errorf("failed to create config directory: %v", err)
 	}
-	err = os.WriteFile("./config.yaml", yamlBytes, 0644)
+	err = os.WriteFile(C.ConfigFile, yamlBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write config to file: %v", err)
 	}

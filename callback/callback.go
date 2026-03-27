@@ -23,6 +23,7 @@ import (
 	"github.com/libost/sticker_go/database"
 	"github.com/libost/sticker_go/log"
 	"github.com/libost/sticker_go/stickers"
+	"github.com/libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -205,7 +206,15 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, ctx.CallbackQuery.Message.GetMessageId())
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {
+		cf, err := config.Init()
+		if err != nil {
+			log.Log(fmt.Sprintf("User %d failed to load config after sticker pack limit error: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
+			return err
+		}
 		msg := fmt.Sprintf("贴纸包包含 %d 张贴纸，超过每包限制的 %d 张。", limitErr.PackLength, limitErr.Limit)
+		if limitErr.Limit == int(float64(cf.General.LimitPerPack)*C.DonationBonusMultiplier) {
+			msg += fmt.Sprintf("\n(捐赠奖励: 每包限制已提升至 %g 倍)", C.DonationBonusMultiplier)
+		}
 		_, _, _ = b.EditMessageText(msg, &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
@@ -271,7 +280,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	log.Log(fmt.Sprintf("User %d successfully downloaded sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
 	removeZipFiles(zipPaths)
-	os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id))
+	os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id)) // 下载完成后清理用户临时目录
 	return nil
 }
 
@@ -285,7 +294,7 @@ func clearLogsHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if result == "confirm" {
 		logDir := C.LogDir
-		err := os.RemoveAll(logDir)
+		err := utils.RemoveDirContents(logDir)
 		if err != nil {
 			log.Log(fmt.Sprintf("User %d failed to clear logs: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
 			_, _, _ = b.EditMessageText("清除日志失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
@@ -294,7 +303,6 @@ func clearLogsHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			})
 			return err
 		}
-		os.Mkdir(logDir, 0755) // 重新创建日志目录
 		log.Log(fmt.Sprintf("User %d cleared all logs", ctx.EffectiveUser.Id), C.LogLevelInfo)
 		_, _, _ = b.EditMessageText("日志已清除！", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,

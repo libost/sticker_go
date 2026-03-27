@@ -1,12 +1,42 @@
 package constants
 
-import "time"
+import (
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+var (
+	Dir          string
+	CacheDir     string
+	ConfigFile   string
+	LogDir       string
+	DatabaseFile string
+)
+
+func init() {
+	SetBaseDir("./")
+}
+
+func SetBaseDir(base string) {
+	cleanBase := filepath.Clean(strings.TrimSpace(base))
+	if cleanBase == "" || cleanBase == "." {
+		Dir = "./"
+	} else {
+		Dir = filepath.ToSlash(cleanBase)
+		if !strings.HasSuffix(Dir, "/") {
+			Dir += "/"
+		}
+	}
+	CacheDir = Dir + "cache/"
+	ConfigFile = Dir + "config.yaml"
+	LogDir = Dir + "logs/"
+	DatabaseFile = Dir + "sticker_go.db"
+}
 
 const (
-	CacheDir     = "./cache/"
-	ConfigFile   = "./config.yaml"
-	LogDir       = "./logs/"
-	RefundPeriod = 7 // 退款周期，默认为7天
+	RefundPeriod            = 7   // 退款周期，默认为7天
+	DonationBonusMultiplier = 1.5 // 捐赠奖励倍数，默认为1.5倍
 )
 
 const (

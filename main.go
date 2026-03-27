@@ -36,7 +36,14 @@ func main() {
 		fmt.Printf("Sticker Bot Version: %s\nBuild Time: %s\nGit Commit: %s\nBranch: %s", V.Version, V.BuildTime, V.GitCommit, V.Branch)
 		return
 	}
-	if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
+	if len(args) > 1 && (args[1] == "Dir" || args[1] == "-D" || args[1] == "-d") {
+		if len(args) < 3 || strings.TrimSpace(args[2]) == "" {
+			L.Log("missing directory path for -d, usage: sticker_go -d <base_dir>", C.LogLevelFatal)
+		}
+		C.SetBaseDir(args[2])
+		L.Log(fmt.Sprintf("Base directory set to: %s", C.Dir), C.LogLevelInfo)
+	}
+	if _, err := os.Stat(C.ConfigFile); os.IsNotExist(err) {
 		L.Log("config.yaml not found, creating default config.yaml", C.LogLevelInfo)
 		_ = utils.ConfigToYAML()
 		L.Log("config.yaml not found, a default config.yaml has been created. Please edit it and restart the bot.", C.LogLevelFatal)
@@ -52,8 +59,8 @@ func main() {
 		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelFatal)
 	}
 	token := cfg.General.Token
-	if strings.TrimSpace(token) == "" || token == "YOUR_TOKEN_HERE" {
-		L.Log("config.yaml token is empty or still using the placeholder value", C.LogLevelFatal)
+	if strings.TrimSpace(token) == "" {
+		L.Log("config.yaml token is empty", C.LogLevelFatal)
 	}
 	if cfg.General.Adminkey == "" {
 		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelFatal)

@@ -37,15 +37,14 @@ func DecodeWebPToPNG(inputPath string) (filePath string, err error) {
 }
 
 func DecodeWebMToGIF(inputPath string) (filePath string, err error) {
-	// 这里需要使用第三方库来处理 WebM 视频并转换为 GIF
-	// 例如，可以使用 ffmpeg 命令行工具来完成这个任务
-	// 你需要确保系统上安装了 ffmpeg，并且在 PATH 中可用
-	cmd := exec.Command("ffmpeg", "-i", inputPath, strings.TrimSuffix(inputPath, ".webm")+".gif")
+	filter := "fps=30,scale=512:-1:flags=lanczos,split[s0][s1];[s0]palettegen=reserve_transparent=on:transparency_color=ffffff[p];[s1][p]paletteuse=alpha_threshold=128"
+	outputPath := strings.TrimSuffix(inputPath, ".webm") + ".gif"
+	cmd := exec.Command("ffmpeg", "-i", inputPath, "-vf", filter, outputPath)
 	err = cmd.Run()
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSuffix(inputPath, ".webm") + ".gif", nil
+	return outputPath, nil
 }
 
 func DecodeTgsToGIF(dir string) error {

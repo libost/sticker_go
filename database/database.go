@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	C "github.com/libost/sticker_go/constants"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -52,7 +54,7 @@ var (
 
 func getDB() (*sql.DB, error) {
 	dbOnce.Do(func() {
-		db, dbErr = sql.Open("sqlite", "./sticker_go.db")
+		db, dbErr = sql.Open("sqlite", C.DatabaseFile)
 		if dbErr != nil {
 			return
 		}
