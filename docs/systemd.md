@@ -41,3 +41,36 @@ sudo systemctl status sticker_go
 ```bash
 sudo journalctl -u sticker_go -f
 ```
+- 停止服务：
+```bash
+sudo systemctl stop sticker_go
+```
+- 重启服务：
+```bash
+sudo systemctl restart sticker_go
+```
+## 移除本程序及其所有组件
+- 停止服务：
+```bash
+sudo systemctl stop sticker_go
+```
+- 禁用服务：
+```bash
+sudo systemctl disable sticker_go
+```
+- 删除服务文件：
+```bash
+sudo rm /etc/systemd/system/sticker_go.service
+```
+- 删除可执行文件：
+```bash
+sudo rm /usr/bin/sticker_go_linux
+```
+- 删除配置文件：
+```bash
+sudo rm -r /etc/sticker_go
+```
+- 重新加载 systemd 配置：
+```bash
+sudo systemctl daemon-reload
+```
