@@ -35,6 +35,18 @@ func SetBaseDir(base string) {
 }
 
 const (
+	ZipSendAttempts     = 3
+	ZipSendTimeout      = 3 * time.Minute // 按照国内最小的带宽 3Mbps 来计算，50MB 的文件大约需要 2 分钟，这里设置为 3 分钟以提供一些缓冲时间
+	ZipSendRetryBackoff = 2 * time.Second
+)
+
+const (
+	MaxZipPartSizeBytes  int64 = 50 * 1024 * 1024
+	ZipArchiveFooterSize int64 = 22
+	ZipEntryHeaderSize   int64 = 30 + 46 + 64
+)
+
+const (
 	RefundPeriod            = 7   // 退款周期，默认为7天
 	DonationBonusMultiplier = 1.5 // 捐赠奖励倍数，默认为1.5倍
 )
@@ -104,6 +116,7 @@ var DefaultConfig struct {
 	} `yaml:"proxy,omitempty"`
 	Donation struct {
 		Enabled        bool   `yaml:"enabled"`
+		BonusEnabled   bool   `yaml:"bonus_enabled"`
 		Title          string `yaml:"title"`
 		Description    string `yaml:"description"`
 		AmountRestrict struct {

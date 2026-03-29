@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/libost/sticker_go/config"
@@ -31,12 +32,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 	"github.com/minio/selfupdate"
-)
-
-const (
-	zipSendAttempts     = 3
-	zipSendTimeout      = 3 * time.Minute // 按照国内最小的带宽 3Mbps 来计算，50MB 的文件大约需要 2 分钟，这里设置为 3 分钟以提供一些缓冲时间
-	zipSendRetryBackoff = 2 * time.Second
 )
 
 func AddHandlers(dispatcher *ext.Dispatcher) {
@@ -59,7 +54,7 @@ func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !cf.Donation.Enabled {
 		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
 		_, err = b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
-			ErrorMessage: "捐赠功能已关闭，暂时无法接受捐赠。",
+			ErrorMessage: "😕 捐赠功能已关闭，暂时无法接受捐赠。",
 		})
 		return err
 	}
@@ -80,7 +75,7 @@ func successHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Log(fmt.Sprintf("User %d donateSuccess persistence failed: %v", ctx.EffectiveUser.Id, dbErr), C.LogLevelError)
 		return dbErr
 	}
-	_, err := b.SendMessage(ctx.EffectiveChat.Id, fmt.Sprintf("感谢您的支持！我们已经收到您支付的 %d %s。", sp.TotalAmount, sp.Currency), nil)
+	_, err := b.SendMessage(ctx.EffectiveChat.Id, fmt.Sprintf("🫡 感谢您的支持！我们已经收到您支付的 %d %s。", sp.TotalAmount, sp.Currency), nil)
 	if err != nil {
 		return err
 	}
@@ -105,7 +100,7 @@ func isRetryableSendDocumentError(err error) bool {
 func sendZipDocumentWithRetry(b *gotgbot.Bot, userID int64, zipPath string) error {
 	var lastErr error
 
-	for attempt := 1; attempt <= zipSendAttempts; attempt++ {
+	for attempt := 1; attempt <= C.ZipSendAttempts; attempt++ {
 		f, err := os.Open(zipPath)
 		if err != nil {
 			return err
@@ -113,7 +108,7 @@ func sendZipDocumentWithRetry(b *gotgbot.Bot, userID int64, zipPath string) erro
 
 		_, err = b.SendDocument(userID, gotgbot.InputFileByReader(f.Name(), f), &gotgbot.SendDocumentOpts{
 			RequestOpts: &gotgbot.RequestOpts{
-				Timeout: zipSendTimeout,
+				Timeout: C.ZipSendTimeout,
 			},
 		})
 		closeErr := f.Close()
@@ -129,12 +124,12 @@ func sendZipDocumentWithRetry(b *gotgbot.Bot, userID int64, zipPath string) erro
 		}
 
 		lastErr = err
-		if attempt == zipSendAttempts || !isRetryableSendDocumentError(err) {
+		if attempt == C.ZipSendAttempts || !isRetryableSendDocumentError(err) {
 			break
 		}
 
-		backoff := zipSendRetryBackoff * time.Duration(1<<(attempt-1))
-		log.Log(fmt.Sprintf("Retrying zip send for user %d, file %s, attempt %d/%d after error: %v", userID, zipPath, attempt+1, zipSendAttempts, err), C.LogLevelWarn)
+		backoff := C.ZipSendRetryBackoff * time.Duration(1<<(attempt-1))
+		log.Log(fmt.Sprintf("Retrying zip send for user %d, file %s, attempt %d/%d after error: %v", userID, zipPath, attempt+1, C.ZipSendAttempts, err), C.LogLevelWarn)
 		time.Sleep(backoff)
 	}
 
@@ -188,13 +183,13 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// 先回应回调查询，避免客户端超时
 	_, err := ctx.CallbackQuery.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-		Text: "正在获取贴纸包，请稍候...",
+		Text: "📩 正在获取贴纸包，请稍候...",
 	})
 	if err != nil {
 		return err
 	}
 
-	_, _, err = b.EditMessageText("正在获取贴纸包，请稍候...", &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText("📩 正在获取贴纸包，请稍候...", &gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 	})
@@ -211,7 +206,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Log(fmt.Sprintf("User %d failed to load config after sticker pack limit error: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
 			return err
 		}
-		msg := fmt.Sprintf("贴纸包包含 %d 张贴纸，超过每包限制的 %d 张。", limitErr.PackLength, limitErr.Limit)
+		msg := fmt.Sprintf("🥺 贴纸包包含 %d 张贴纸，超过每包限制的 %d 张。", limitErr.PackLength, limitErr.Limit)
 		if limitErr.Limit == int(float64(cf.General.LimitPerPack)*C.DonationBonusMultiplier) {
 			msg += fmt.Sprintf("\n(捐赠奖励: 每包限制已提升至 %g 倍)", C.DonationBonusMultiplier)
 		}
@@ -223,7 +218,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if err != nil {
-		_, _, _ = b.EditMessageText("获取贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 获取贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -233,7 +228,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(zipPaths) > 1 {
 		_, _, _ = b.EditMessageText(
-			fmt.Sprintf("贴纸包较大，正在分开发送，共 %d 个压缩包。", len(zipPaths)),
+			fmt.Sprintf("📨 贴纸包较大，正在分开发送，共 %d 个压缩包。", len(zipPaths)),
 			&gotgbot.EditMessageTextOpts{
 				ChatId:    ctx.EffectiveChat.Id,
 				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
@@ -245,7 +240,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		err = sendZipDocumentWithRetry(b, ctx.EffectiveUser.Id, zipPath)
 		if err != nil {
 			removeZipFiles(zipPaths)
-			_, _, _ = b.EditMessageText("发送贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			_, _, _ = b.EditMessageText("🥺 发送贴纸包失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 				ChatId:    ctx.EffectiveChat.Id,
 				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 			})
@@ -297,20 +292,20 @@ func clearLogsHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		err := utils.RemoveDirContents(logDir)
 		if err != nil {
 			log.Log(fmt.Sprintf("User %d failed to clear logs: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-			_, _, _ = b.EditMessageText("清除日志失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+			_, _, _ = b.EditMessageText("🥺 清除日志失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 				ChatId:    ctx.EffectiveChat.Id,
 				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 			})
 			return err
 		}
 		log.Log(fmt.Sprintf("User %d cleared all logs", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText("日志已清除！", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("✅ 日志已清除！", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
 		return nil
 	}
-	_, _, _ = b.EditMessageText("已取消清除日志。", &gotgbot.EditMessageTextOpts{
+	_, _, _ = b.EditMessageText("❎ 已取消清除日志。", &gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 	})
@@ -328,14 +323,24 @@ func shutdownHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if result == "confirm" {
 		log.Log(fmt.Sprintf("User %d initiated shutdown", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, _, _ = b.EditMessageText("正在关闭机器人...", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🤖 正在关闭机器人...", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
-		os.Exit(0)
+		if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+			proc, findErr := os.FindProcess(os.Getpid())
+			if findErr != nil {
+				return findErr
+			}
+			if signalErr := proc.Signal(syscall.SIGINT); signalErr != nil {
+				return signalErr
+			}
+		} else {
+			os.Exit(0) //no graceful shutdown on windows, just exit
+		}
 	} else {
 		log.Log(fmt.Sprintf("User %d cancelled shutdown", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText("已取消关闭机器人。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("❎ 已取消关闭机器人。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -354,7 +359,7 @@ func refundApplyHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	ok, err := b.RefundStarPayment(ctx.EffectiveUser.Id, telegramPaymentChargeID, &gotgbot.RefundStarPaymentOpts{})
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to apply for refund: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText("申请退款失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 申请退款失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -362,7 +367,7 @@ func refundApplyHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if ok {
 		log.Log(fmt.Sprintf("User %d successfully applied for refund", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText("退款申请已提交！请等待审核结果。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("✅ 退款申请已提交！请等待审核结果。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -371,7 +376,7 @@ func refundApplyHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		})
 	} else {
 		log.Log(fmt.Sprintf("User %d failed to apply for refund: unknown error", ctx.EffectiveUser.Id), C.LogLevelError)
-		_, _, _ = b.EditMessageText("申请退款失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 申请退款失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -388,13 +393,13 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if callbackData == "upgrade_false" {
 		log.Log(fmt.Sprintf("User %d cancelled upgrade", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText("已取消更新。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("❎ 已取消更新。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
 		return nil
 	}
-	_, _, err = b.EditMessageText("正在更新，请稍候...", &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText("✅ 正在更新，请稍候...", &gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 	})
@@ -413,7 +418,7 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	currentPath, err := os.Executable()
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to get executable path before update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText("更新失败：无法确定当前程序路径。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 更新失败：无法确定当前程序路径。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -428,7 +433,7 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		log.Log(fmt.Sprintf("User %d failed to download latest release asset: HTTP %d", ctx.EffectiveUser.Id, resp.StatusCode), C.LogLevelError)
-		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -438,7 +443,7 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	checkSumResp, err := http.Get(checkSumURL)
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to download checksums file: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -447,7 +452,7 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer checkSumResp.Body.Close()
 	if checkSumResp.StatusCode != http.StatusOK {
 		log.Log(fmt.Sprintf("User %d failed to download checksums file: HTTP %d", ctx.EffectiveUser.Id, checkSumResp.StatusCode), C.LogLevelError)
-		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -456,7 +461,7 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	checksumsData, err := io.ReadAll(checkSumResp.Body)
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to read checksums file: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText("下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 下载更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -466,7 +471,7 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	checksum, err := parseSHA256FromChecksums(checksumsData, execname)
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to parse checksum for %s: %v", ctx.EffectiveUser.Id, execname, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText("下载更新失败：未找到对应文件的校验值。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 下载更新失败：未找到对应文件的校验值。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
@@ -476,14 +481,14 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	err = selfupdate.Apply(resp.Body, selfupdate.Options{Checksum: checksum})
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to apply update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText("应用更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 应用更新失败，请稍后重试。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})
 		return err
 	}
 	log.Log(fmt.Sprintf("User %d successfully updated the bot", ctx.EffectiveUser.Id), C.LogLevelInfo)
-	_, _, _ = b.EditMessageText("更新成功！正在重启...", &gotgbot.EditMessageTextOpts{
+	_, _, _ = b.EditMessageText("✅ 更新成功！正在重启...", &gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 	})
@@ -500,7 +505,7 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	err = cmd.Start()
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to restart the bot after update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText("重启失败，请手动重启机器人。", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🥺 重启失败，请手动重启机器人。", &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 		})

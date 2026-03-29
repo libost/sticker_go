@@ -20,12 +20,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
-const (
-	maxZipPartSizeBytes  int64 = 50 * 1024 * 1024
-	zipArchiveFooterSize int64 = 22
-	zipEntryHeaderSize   int64 = 30 + 46 + 64
-)
-
 type StickerPackLimitError struct {
 	PackLength int
 	Limit      int
@@ -83,7 +77,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		}
 		progressNow++
 		if progressNow == 1 || progressNow%5 == 0 || progressNow == packLength {
-			_, _, err = b.EditMessageText(fmt.Sprintf("正在处理贴纸包 %s... \n进度(%d/%d)", stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
+			_, _, err = b.EditMessageText(fmt.Sprintf("🤖 正在处理贴纸包 %s... \n进度(%d/%d)", stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
 				ChatId:    uid,
 				MessageId: messageId,
 			})
@@ -168,7 +162,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		filePaths = append(filePaths, convertedPath)
 	}
 	if tgsContained && cf.General.TgsSupport {
-		_, _, _ = b.EditMessageText("正在转换 TGS 贴纸...", &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText("🤖 正在转换 TGS 贴纸...", &gotgbot.EditMessageTextOpts{
 			ChatId:    uid,
 			MessageId: messageId,
 		})
@@ -322,7 +316,7 @@ func buildStickerPackZips(stickerSetName string, filePaths []string, tempDir str
 		}
 		currentZip = file
 		currentZipWriter = zip.NewWriter(file)
-		currentZipSize = zipArchiveFooterSize
+		currentZipSize = C.ZipArchiveFooterSize
 		currentZipFileCount = 0
 		zipPaths = append(zipPaths, currentZipPath)
 		return nil
@@ -340,13 +334,13 @@ func buildStickerPackZips(stickerSetName string, filePaths []string, tempDir str
 			cleanupZipPaths(zipPaths)
 			return nil, err
 		}
-		if entrySize > maxZipPartSizeBytes {
+		if entrySize > C.MaxZipPartSizeBytes {
 			_ = closeCurrentZip()
 			cleanupZipPaths(zipPaths)
 			return nil, fmt.Errorf("sticker file %s exceeds zip part size limit", filepath.Base(path))
 		}
 
-		if currentZipFileCount > 0 && currentZipSize+entrySize > maxZipPartSizeBytes {
+		if currentZipFileCount > 0 && currentZipSize+entrySize > C.MaxZipPartSizeBytes {
 			if err := closeCurrentZip(); err != nil {
 				cleanupZipPaths(zipPaths)
 				return nil, err
@@ -390,7 +384,7 @@ func estimateZipEntrySize(path string) (int64, error) {
 		return 0, fmt.Errorf("failed to stat file %s: %v", path, err)
 	}
 	nameLen := int64(len(filepath.Base(path)))
-	return info.Size() + zipEntryHeaderSize + nameLen*2, nil
+	return info.Size() + C.ZipEntryHeaderSize + nameLen*2, nil
 }
 
 func sanitizeZipBaseName(name string) string {
