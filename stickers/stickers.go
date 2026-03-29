@@ -94,7 +94,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if (int(currentUsage["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
 		database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
 	}
-	sentMsg, err := ctx.EffectiveMessage.Reply(b, "正在处理你的贴纸，请稍候...", nil)
+	sentMsg, err := ctx.EffectiveMessage.Reply(b, "🤖 正在处理你的贴纸，请稍候...", nil)
 	if err != nil {
 		return err
 	}
@@ -104,8 +104,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				{
 					Text:         "获取整套贴纸包",
 					CallbackData: fmt.Sprintf("get_pack_%s", sticker.SetName),
-					// 这里的 CallbackData 可以用来在回调查询处理器中识别用户点击了哪个按钮
-					// 你需要在回调查询处理器中解析这个数据，并根据 sticker.SetName 来获取并发送整套贴纸包
+					Style:        "primary",
 				},
 			},
 		},
@@ -127,12 +126,8 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err = fileSend.Close(); err != nil {
 		return err
 	}
-	usergroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
-	if err != nil {
-		return err
-	}
 	displayText := "✅ 处理完成！"
-	if usergroup["user_group"] != "sponsor" && cf.Donation.Enabled {
+	if userGroup["user_group"] != "sponsor" && cf.Donation.Enabled {
 		n := rand.IntN(10) + 1
 		if n <= 2 { // 20% 的概率提示用户支持开发
 			displayText += "\n <blockquote>如果你喜欢这个项目，欢迎使用命令 /donate 支持开发</blockquote>"

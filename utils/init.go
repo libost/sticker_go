@@ -35,6 +35,7 @@ func ConfigToYAML() error {
 	defaultConfig.Proxy.Username = ""
 	defaultConfig.Proxy.Password = ""
 	defaultConfig.Donation.Enabled = false
+	defaultConfig.Donation.BonusEnabled = false
 	defaultConfig.Donation.Title = "支持开发"
 	defaultConfig.Donation.Description = "如果你喜欢这个项目，欢迎通过以下方式支持开发！"
 	defaultConfig.Donation.AmountRestrict.Min = 1

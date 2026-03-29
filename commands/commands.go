@@ -58,13 +58,13 @@ func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) 
 	}
 	if !data["exists"].(bool) {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /%s without a valid user record", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "😕 你没有权限使用这个命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return false, err
 	}
 	if data["user_group"].(string) != "admin" {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /%s without permission", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "你没有权限使用这个命令。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "😕 你没有权限使用这个命令。", nil)
 		return false, err
 	}
 	return true, nil
@@ -101,10 +101,10 @@ func anyToInt64(v any) (int64, bool) {
 // start 处理器函数
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
-		_, err := ctx.EffectiveMessage.Reply(b, "您好！使用命令 /get 并回复一条贴纸信息，我可以将其转换为图片或视频格式并发送给您。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "👋 您好！使用命令 /get 并回复一条贴纸信息，我可以将其转换为图片或视频格式并发送给您。\n项目地址： https://github.com/libost/sticker_go", nil)
 		return err
 	}
-	_, err := ctx.EffectiveMessage.Reply(b, "您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。\n项目地址： https://github.com/libost/sticker_go", nil)
+	_, err := ctx.EffectiveMessage.Reply(b, "👋 您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。\n项目地址： https://github.com/libost/sticker_go", nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 		"/usage - 查看使用情况\n" +
 		"/about - 查看版本信息"
 	if ctx.EffectiveChat.Type != "private" {
-		displayText = "请在私聊中使用这些命令哦！\n\n" + displayText
+		displayText = "😇 请在私聊中使用这些命令哦！\n\n" + displayText
 	}
 	cf, err := config.Init()
 	if err != nil {
@@ -154,7 +154,7 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 // usage 处理器函数
 func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" && ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
-		_, err := ctx.EffectiveMessage.Reply(b, "请在私聊/群组中使用这个命令哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "😇 请在私聊/群组中使用这个命令哦！", nil)
 		return err
 	}
 	data, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
@@ -163,7 +163,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if !data["exists"].(bool) {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /usage without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "你还没有使用记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "😇 你还没有使用记录。", nil)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	remaining := max(limit-int(data["usage"].(float64)), 0)
 	nextRefresh := time.Unix(int64(data["last_cycle_starts_at"].(float64))+24*3600, 0).Format("2006-01-02 15:04:05")
-	info := fmt.Sprintf("使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s%s",
+	info := fmt.Sprintf("🗒️ 使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s%s",
 		int(data["usage"].(float64)), remaining, nextRefresh, donationBonusExplanation)
 	_, err = ctx.EffectiveMessage.Reply(b, info, nil)
 	log.Log(fmt.Sprintf("User %d triggered /usage", ctx.EffectiveUser.Id), C.LogLevelInfo)
@@ -242,7 +242,7 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		runtime.ReadMemStats(&mem)
 		memoryBytes = mem.Alloc
 	}
-	info := fmt.Sprintf("管理员统计信息:\n总用户数: %d\n总使用次数: %d\n近一周使用次数: %d\n当前缓存占用: %d MB\n当前内存使用: %d MB\n当前日志占用: %d MB",
+	info := fmt.Sprintf("📃 管理员统计信息:\n总用户数: %d\n总使用次数: %d\n近一周使用次数: %d\n当前缓存占用: %d MB\n当前内存使用: %d MB\n当前日志占用: %d MB",
 		int(stats["stats"].(map[string]any)["total_users"].(float64)),
 		int(stats["stats"].(map[string]any)["total_usage"].(float64)),
 		int(stats["stats"].(map[string]any)["weekly_usage"].(float64)),
@@ -266,19 +266,19 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if !data["exists"].(bool) {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "正在创建用户记录。\n请重试你刚才的命令。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "✍️ 正在创建用户记录。\n请重试你刚才的命令。", nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
 	if data["user_group"].(string) == "admin" {
-		_, err := ctx.EffectiveMessage.Reply(b, "你已经是管理员了。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "😇 你已经是管理员了。", nil)
 		log.Log(fmt.Sprintf("User %d is already an admin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 		return err
 	}
 	arg := ctx.Args()
 	if len(arg) == 1 {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin without providing a key", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "请提供密钥。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤔 请提供密钥。", nil)
 		return err
 	}
 	cf, err := config.Init()
@@ -287,7 +287,7 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if arg[1] != cf.General.Adminkey {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin with incorrect key", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		displayText := "密钥错误，你没有权限成为管理员。"
+		displayText := "😵 密钥错误。"
 		_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
 		return err
 	}
@@ -295,7 +295,7 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "你现在是管理员了！", nil)
+	_, err = ctx.EffectiveMessage.Reply(b, "🫡 你现在是管理员了！", nil)
 	log.Log(fmt.Sprintf("User %d triggered /setadmin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
@@ -309,7 +309,7 @@ func resetUsage(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil
 	}
 	database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
-	_, err = ctx.EffectiveMessage.Reply(b, "使用记录已重置！", nil)
+	_, err = ctx.EffectiveMessage.Reply(b, "🥳 使用记录已重置！", nil)
 	log.Log(fmt.Sprintf("User %d triggered /reset", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
@@ -331,7 +331,7 @@ func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "缓存已清空！", nil)
+	_, err = ctx.EffectiveMessage.Reply(b, "📄 缓存已清空！", nil)
 	log.Log(fmt.Sprintf("User %d triggered /clearcache", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 
@@ -376,7 +376,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "命令列表已更新！", nil)
+	_, err = ctx.EffectiveMessage.Reply(b, "📄 命令列表已更新！", nil)
 	log.Log(fmt.Sprintf("User %d triggered /setcommands", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
@@ -384,7 +384,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
 	displayText := fmt.Sprintf("版本: <code>%s</code>\n构建时间: <code>%s</code>\nGit 提交: <code>%s</code>\n分支: <code>%s</code>\n项目地址: https://github.com/libost/sticker_go", V.Version, V.BuildTime, V.GitCommit, V.Branch)
 	if ctx.EffectiveChat.Type != "private" {
-		displayText = "检测到群聊环境，部分功能已禁用\n\n" + displayText
+		displayText = "😇 检测到群聊环境，部分功能已禁用\n\n" + displayText
 	}
 	if ctx.EffectiveChat.Type == "channel" {
 		return nil // 频道中不响应 /about 命令
@@ -407,12 +407,12 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
-				{Text: "确认", CallbackData: "clear_logs_confirm"},
-				{Text: "取消", CallbackData: "clear_logs_cancel"},
+				{Text: "确认", CallbackData: "clear_logs_confirm", Style: "danger"},
+				{Text: "取消", CallbackData: "clear_logs_cancel", Style: "primary"},
 			},
 		},
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "真的要清除日志吗？\n此操作不可逆！", &gotgbot.SendMessageOpts{
+	_, err = ctx.EffectiveMessage.Reply(b, "🧐 真的要清除日志吗？\n此操作不可逆！", &gotgbot.SendMessageOpts{
 		ReplyMarkup: inlineKeyboard,
 	})
 	log.Log(fmt.Sprintf("User %d triggered /clearlogs", ctx.EffectiveUser.Id), C.LogLevelInfo)
@@ -427,7 +427,7 @@ func restart(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "正在重启机器人...", nil)
+	_, err = ctx.EffectiveMessage.Reply(b, "🤖 正在重启机器人...", nil)
 	log.Log(fmt.Sprintf("User %d triggered /restart", ctx.EffectiveUser.Id), C.LogLevelWarn)
 	if err != nil {
 		return err
@@ -452,7 +452,13 @@ func restart(b *gotgbot.Bot, ctx *ext.Context) error {
 	case "linux", "darwin":
 		_, exists := os.LookupEnv("INVOCATION_ID")
 		if exists {
-			os.Exit(0)
+			proc, findErr := os.FindProcess(os.Getpid())
+			if findErr != nil {
+				return findErr
+			}
+			if signalErr := proc.Signal(syscall.SIGTERM); signalErr != nil {
+				return signalErr
+			}
 		} else {
 			pathExe, _ := os.Executable()
 			args := os.Args
@@ -471,18 +477,18 @@ func shutdown(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	displayText := "真的要关闭机器人吗？\n此操作不可逆！"
+	displayText := "🤖真的要关闭机器人吗？\n此操作不可逆！"
 	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		_, exists := os.LookupEnv("INVOCATION_ID")
 		if exists {
-			displayText += "\n警告：当前环境似乎是 systemd 管理的服务，确认后机器人将会自动重启。"
+			displayText += "\n警告：当前环境似乎是 systemd 管理的服务，确认后机器人可能再次被启动。"
 		}
 	}
 	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
-				{Text: "确认", CallbackData: "shutdown_confirm"},
-				{Text: "取消", CallbackData: "shutdown_cancel"},
+				{Text: "确认", CallbackData: "shutdown_confirm", Style: "danger"},
+				{Text: "取消", CallbackData: "shutdown_cancel", Style: "primary"},
 			},
 		},
 	}
@@ -504,7 +510,7 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	displayText := "管理员命令列表：\n" +
+	displayText := "🤖 管理员命令列表：\n" +
 		"/getstats - 获取统计信息\n" +
 		"/reset - 重置当前用户的使用记录\n" +
 		"/clearcache - 清空缓存文件\n" +
@@ -521,14 +527,14 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type == "private" {
-		_, err := ctx.EffectiveMessage.Reply(b, "请在群聊中使用这个命令哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤗请在群聊中使用这个命令哦！", nil)
 		return err
 	}
 	if ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
 		return nil // 仅允许在群聊中使用 /get 命令，忽略私聊和频道中的命令
 	}
 	if ctx.EffectiveMessage.ReplyToMessage == nil || ctx.EffectiveMessage.ReplyToMessage.Sticker == nil {
-		_, err := ctx.EffectiveMessage.Reply(b, "请回复一个贴纸消息并使用这个命令哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤗 请回复一个贴纸消息并使用这个命令哦！", nil)
 		return err
 	}
 	cf, err := config.Init()
@@ -545,7 +551,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	limit := cf.General.Limit
 	if int(currentUsage["usage"].(float64)) >= limit {
-		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("您已达到使用上限 (%d 次)，请稍后再试！", limit), nil)
+		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("🥺 您已达到使用上限 (%d 次)，请稍后再试！", limit), nil)
 		return err
 	}
 	if cf.Subscription.Enabled {
@@ -571,7 +577,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 	}
-	msg, err := ctx.EffectiveMessage.Reply(b, "正在发送贴纸文件，请稍候...", nil)
+	msg, err := ctx.EffectiveMessage.Reply(b, "😏 正在发送贴纸文件，请稍候...", nil)
 	if err != nil {
 		return err
 	}
@@ -594,7 +600,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	_, _, err = b.EditMessageText("贴纸文件发送完成！\n想获得整套贴纸包？请在私聊中与机器人对话。", &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText("😏 贴纸文件发送完成！\n想获得整套贴纸包？请在私聊中与机器人对话。", &gotgbot.EditMessageTextOpts{
 		ChatId:    msg.Chat.Id,
 		MessageId: msg.MessageId,
 	})
@@ -611,7 +617,7 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if isAdmin {
-		_, err := ctx.EffectiveMessage.Reply(b, "管理员不需要捐赠哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤖 管理员不需要捐赠哦！", nil)
 		return err
 	}
 	cf, err := config.Init()
@@ -619,7 +625,7 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if !cf.Donation.Enabled {
-		_, err := ctx.EffectiveMessage.Reply(b, "感谢您的好意，但目前我们还不接受捐赠哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤗 感谢您的好意，但目前我们还不接受捐赠哦！", nil)
 		if err != nil {
 			return err
 		}
@@ -671,12 +677,12 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if len(donates["donates"].([]map[string]any)) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "目前没有任何捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "😐 目前没有任何捐赠记录。", nil)
 		return err
 	}
 	args := ctx.Args()
 	var displayText strings.Builder
-	displayText.WriteString("所有捐赠记录：\n")
+	displayText.WriteString("📄 所有捐赠记录：\n")
 	recordLength := 0
 	for _, donate := range donates["donates"].([]map[string]any) {
 		timestamp, ok := anyToInt64(donate["timestamp"])
@@ -695,7 +701,7 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 		recordLength++
 	}
 	if recordLength == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "没有符合条件的捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "😐 没有符合条件的捐赠记录。", nil)
 		return err
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, displayText.String(), nil)
@@ -712,7 +718,7 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if isAdmin {
-		_, err := ctx.EffectiveMessage.Reply(b, "管理员无需退款", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤖 管理员无需退款", nil)
 		if err != nil {
 			return err
 		}
@@ -723,7 +729,7 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if len(data["donations"].([]map[string]any)) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "您没有任何捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🥺 您没有任何捐赠记录。", nil)
 		return err
 	}
 	timeNow := time.Now().Unix()
@@ -738,12 +744,12 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	if len(refundableDonations) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "很抱歉，您的捐赠已超过可退款期限。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🥺 很抱歉，您的捐赠已超过可退款期限。", nil)
 		return err
 	}
 	var displayText strings.Builder
 	InlineKeyboard := [][]gotgbot.InlineKeyboardButton{}
-	displayText.WriteString("您有以下捐赠记录符合退款条件：\n")
+	displayText.WriteString("📄 您有以下捐赠记录符合退款条件：\n")
 	for i, donation := range refundableDonations {
 		timestamp, ok := anyToInt64(donation["timestamp"])
 		if !ok {
@@ -758,6 +764,7 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				Text:         fmt.Sprintf("申请退款 %d", i+1),
 				CallbackData: fmt.Sprintf("refund_apply_%s", telegramChargeID),
+				Style:        "primary",
 			},
 		})
 
@@ -765,7 +772,7 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		fmt.Fprintf(&displayText, "%d. 金额: %d, 时间: %s\n", i+1, amount, timeFormatted)
 	}
 	if len(InlineKeyboard) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "没有可用于申请退款的有效捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🥺 没有可用于申请退款的有效捐赠记录。", nil)
 		return err
 	}
 
@@ -790,14 +797,14 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if !isAdmin {
-		_, err := ctx.EffectiveMessage.Reply(b, "只有管理员才能使用此命令。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤖 只有管理员才能使用此命令。", nil)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
 	if V.Version == "dev" {
-		_, err := ctx.EffectiveMessage.Reply(b, "当前版本为开发版本，无法检查更新。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤖 当前版本为开发版本，无法检查更新。", nil)
 		return err
 	}
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", C.Owner, C.Repo)
@@ -815,7 +822,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		_, err := ctx.EffectiveMessage.Reply(b, "无法获取最新版本信息，请稍后再试。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤖 无法获取最新版本信息，请稍后再试。", nil)
 		if err != nil {
 			return err
 		}
@@ -826,7 +833,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	body, _ := io.ReadAll(resp.Body)
 	var release GitHubRelease
 	if err := json.Unmarshal(body, &release); err != nil {
-		_, err := ctx.EffectiveMessage.Reply(b, "无法解析最新版本信息，请稍后再试。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, "🤖 无法解析最新版本信息，请稍后再试。", nil)
 		if err != nil {
 			return err
 		}
@@ -836,22 +843,24 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	latestVersion := release.TagName
 
 	if latestVersion == V.Version {
-		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("当前已经是最新版本了！版本号: <a href='%s'>%s</a>", C.RepoURL, V.Version), &gotgbot.SendMessageOpts{
+		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("🤖 当前已经是最新版本了！版本号: <a href='%s'>%s</a>", C.RepoURL, V.Version), &gotgbot.SendMessageOpts{
 			ParseMode: "HTML",
 		})
 		return err
 	}
-	displayText := fmt.Sprintf("有新版本可用！最新版本: <a href='%s'>%s</a>", C.RepoURL, latestVersion)
+	displayText := fmt.Sprintf("🤖 有新版本可用！最新版本: <a href='%s'>%s</a>", C.RepoURL, latestVersion)
 	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
 					Text:         "立即更新",
 					CallbackData: "upgrade_true",
+					Style:        "success",
 				},
 				{
 					Text:         "稍后再说",
 					CallbackData: "upgrade_false",
+					Style:        "primary",
 				},
 			},
 		},

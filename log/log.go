@@ -56,26 +56,23 @@ func Log(message string, level C.LogLevel) {
 	if !isTimeRight {
 		incorrectTimeNotice = " (Current time may be incorrect due to timezone issues, check config)"
 	}
+	preMessage := fmt.Sprintf("[%s] %s%s\n", level.Level, message, incorrectTimeNotice)
+	logMessage := fmt.Sprintf("[%s] %s", timestamp, preMessage)
 	_, exists := os.LookupEnv("INVOCATION_ID")
-	logMessage := fmt.Sprintf("[%s] [%s] %s%s\n", timestamp, level.Level, message, incorrectTimeNotice)
 	if exists {
-		logMessage = fmt.Sprintf("%s [%s] %s%s\n", systemdLevel, level.Level, message, incorrectTimeNotice)
+		logMessage = fmt.Sprintf("%s %s", systemdLevel, preMessage)
 	}
-	logToFile(message, level)
+	logToFile(preMessage)
 	os.Stdout.WriteString(logMessage)
 	if level == C.LogLevelFatal {
 		os.Exit(1)
 	}
 }
 
-func logToFile(message string, level C.LogLevel) {
-	timestamp, isTimeRight := timeNow()
-	var incorrectTimeNotice string
-	if !isTimeRight {
-		incorrectTimeNotice = " (Current time may be incorrect due to timezone issues, check config)"
-	}
+func logToFile(message string) {
+	timestamp, _ := timeNow()
 	logFilePath := fmt.Sprintf("%s/log_%s.log", C.LogDir, timestamp[:10]) // 每天一个日志文件，格式为 log_YYYY-MM-DD.log
-	logMessage := fmt.Sprintf("[%s] [%s] %s%s\n", timestamp, level.Level, message, incorrectTimeNotice)
+	logMessage := fmt.Sprintf("[%s] %s", timestamp, message)
 	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Failed to open log file: %v\n", err)

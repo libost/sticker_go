@@ -7,9 +7,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/libost/sticker_go/callback"
@@ -31,22 +33,35 @@ import (
 )
 
 func main() {
+	// 捕获系统信号，在启动完成后执行优雅关闭流程
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigs)
 	args := os.Args
-	if len(args) > 1 && (args[1] == "version" || args[1] == "-v" || args[1] == "--version") {
-		fmt.Printf("Sticker Bot Version: %s\nBuild Time: %s\nGit Commit: %s\nBranch: %s", V.Version, V.BuildTime, V.GitCommit, V.Branch)
-		return
-	}
-	if len(args) > 1 && (args[1] == "Dir" || args[1] == "-D" || args[1] == "-d") {
-		if len(args) < 3 || strings.TrimSpace(args[2]) == "" {
-			L.Log("missing directory path for -d, usage: sticker_go -d <base_dir>", C.LogLevelFatal)
+	if len(args) > 1 {
+		switch args[1] {
+		case "version", "-v", "--version":
+			fmt.Printf("Sticker Bot Version: %s\nBuild Time: %s\nGit Commit: %s\nBranch: %s", V.Version, V.BuildTime, V.GitCommit, V.Branch)
+			return
+		case "Dir", "-D", "-d":
+			if len(args) < 3 || strings.TrimSpace(args[2]) == "" {
+				L.Log("missing directory path for -d, usage: sticker_go -d <base_dir>", C.LogLevelFatal)
+			}
+			C.SetBaseDir(args[2])
+			fmt.Printf("Base directory set to: %s\n", C.Dir)
+		case "help", "-h", "--help":
+			fmt.Printf("Usage: sticker_go [options]\n\nOptions:\n  version, -v, --version   Show version information\n  Dir, -D, -d <path>       Set base directory for data to be stored\n  help, -h, --help         Show this help message\n")
+			return
+		default:
+			fmt.Printf("Unknown argument: %s\nUse 'sticker_go --help' to see available options.\n", args[1])
+			return
 		}
-		C.SetBaseDir(args[2])
-		L.Log(fmt.Sprintf("Base directory set to: %s", C.Dir), C.LogLevelInfo)
 	}
 	if _, err := os.Stat(C.ConfigFile); os.IsNotExist(err) {
 		L.Log("config.yaml not found, creating default config.yaml", C.LogLevelInfo)
 		_ = utils.ConfigToYAML()
-		L.Log("config.yaml not found, a default config.yaml has been created. Please edit it and restart the bot.", C.LogLevelFatal)
+		L.Log("config.yaml not found, a default config.yaml has been created. Please edit it and restart the bot.", C.LogLevelError)
+		return
 	}
 	cfg, err := config.Init()
 	if err != nil {
@@ -59,11 +74,13 @@ func main() {
 		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelFatal)
 	}
 	token := cfg.General.Token
-	if strings.TrimSpace(token) == "" {
-		L.Log("config.yaml token is empty", C.LogLevelFatal)
-	}
-	if cfg.General.Adminkey == "" {
+	switch "" {
+	case strings.TrimSpace(token):
+		L.Log("bot token is not set in config.yaml, please set your bot token to start the bot", C.LogLevelFatal)
+		return
+	case cfg.General.Adminkey:
 		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelFatal)
+		return
 	}
 	httpClient := &http.Client{
 		Timeout: time.Second * 10,
@@ -245,10 +262,10 @@ func main() {
 			listenaddr = fmt.Sprintf("127.0.0.1:%d", cfg.Webhook.Port)
 		} else {
 			if !isTelegramAcceptedWebhookPort(cfg.Webhook.Port) {
-				L.Log(fmt.Sprintf("FATAL: Webhook port %d is not accepted by Telegram API, please consider using a standard port or nginx reverse proxy, this bot will quit.", cfg.Webhook.Port), C.LogLevelFatal)
+				L.Log(fmt.Sprintf("Webhook port %d is not accepted by Telegram API, please consider using a standard port or nginx reverse proxy, this bot will quit.", cfg.Webhook.Port), C.LogLevelFatal)
 			}
 			if cfg.Webhook.Cert.CertPath == "" || cfg.Webhook.Cert.KeyPath == "" {
-				L.Log("FATAL: SSL cert or key path is not set, webhook will be started without TLS which is not secure and may not work with Telegram API, please consider setting cert_path and key_path in config.yaml or using nginx reverse proxy, this bot will quit.", C.LogLevelFatal)
+				L.Log("SSL cert or key path is not set, webhook will be started without TLS which is not secure and may not work with Telegram API, please consider setting cert_path and key_path in config.yaml or using nginx reverse proxy, this bot will quit.", C.LogLevelFatal)
 			} else {
 				webhookOpts.CertFile = cfg.Webhook.Cert.CertPath
 				webhookOpts.KeyFile = cfg.Webhook.Cert.KeyPath
@@ -267,14 +284,12 @@ func main() {
 		err = updater.StartWebhook(b, webhookURL.Path, webhookOpts)
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to start webhook: %v", err), C.LogLevelFatal)
-			panic("failed to start webhook: " + err.Error())
 		}
 
 		// 设置 Telegram 的 Webhook URL
 		_, err = b.SetWebhook(cfg.Webhook.URL, setwebhookopts)
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to set webhook: %v", err), C.LogLevelFatal)
-			panic("failed to set webhook: " + err.Error())
 		}
 		communicationMethod = "Webhook"
 	} else {
@@ -292,12 +307,29 @@ func main() {
 		})
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to start polling: %v", err), C.LogLevelFatal)
-			panic("failed to start polling: " + err.Error())
 		}
 		communicationMethod = "Polling"
 	}
 	logText := fmt.Sprintf("%s has started with %s enabled. Log Level: %s", b.User.Username, communicationMethod, cfg.Log.Level)
 	L.Log(logText, C.LogLevelInfo)
+
+	go func() {
+		sig := <-sigs
+		L.Log(fmt.Sprintf("received signal: %v, starting graceful shutdown...", sig), C.LogLevelInfo)
+
+		cronCtx := c.Stop()
+		if cronCtx != nil {
+			<-cronCtx.Done()
+		}
+
+		if err := updater.Stop(); err != nil {
+			L.Log(fmt.Sprintf("graceful shutdown failed: %v", err), C.LogLevelError)
+			return
+		}
+
+		L.Log("graceful shutdown completed", C.LogLevelInfo)
+	}()
+
 	updater.Idle() // 阻塞直到进程被关闭
 }
 
