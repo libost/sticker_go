@@ -909,7 +909,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	latestVersion := release.TagName
 
 	if latestVersion == V.Version {
-		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_latest", langCode), &gotgbot.SendMessageOpts{
+		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("commands.upgrade_desc_latest", langCode), C.RepoURL, V.Version), &gotgbot.SendMessageOpts{
 			ParseMode: "HTML",
 		})
 		return err
