@@ -13,6 +13,7 @@ import (
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
 	"github.com/libost/sticker_go/database"
+	I "github.com/libost/sticker_go/i18n"
 	"github.com/libost/sticker_go/log"
 	"github.com/libost/sticker_go/utils"
 
@@ -48,13 +49,14 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if cf.Subscription.Enabled {
 		err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
 		if err != nil {
 			channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
 			if errors.Is(err, utils.ErrUserNotSubscribed) {
 
-				displayText := fmt.Sprintf("🤖 为了支持我们的项目并继续提供免费服务，请先加入<a href=\"https://t.me/%s\">官方频道</a> %s 后再使用本功能哦！\n✅ 加入后请再次点击您刚才发送的命令即可继续。", channel, cf.Subscription.Channel)
+				displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, cf.Subscription.Channel)
 				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 					ParseMode: "HTML",
 				})
@@ -63,7 +65,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				}
 				return nil
 			}
-			displayText := fmt.Sprintf("🤖 订阅检查失败，请稍后重试。\n您确定订阅了我们的<a href=\"https://t.me/%s\">官方频道</a> %s 吗？", channel, cf.Subscription.Channel)
+			displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, cf.Subscription.Channel)
 			_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 				ParseMode: "HTML",
 			})
@@ -82,27 +84,28 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		limit = int(float64(cf.General.Limit) * C.DonationBonusMultiplier) // 赞助用户的使用限制增加奖励倍数
 	}
 	if int(currentUsage["usage"].(float64)) >= limit && (int(currentUsage["last_cycle_starts_at"].(float64))+24*3600) >= int(time.Now().Unix()) {
-		displayText := fmt.Sprintf("⚠️ 你已达到使用限制，每周期最多使用 %d 次。\n详细信息请查看 /usage", limit)
+		displayText := fmt.Sprintf(I.GetLocalisedString("general.out_of_quota", langCode), limit)
 		if userGroup["user_group"] != "sponsor" && cf.Donation.Enabled && cf.Donation.BonusEnabled {
-			displayText += "\n\n💖 如果你喜欢这个项目，欢迎使用命令 /donate 支持开发，赞助用户的使用限制将增加奖励倍数！"
+			displayText += I.GetLocalisedString("general.donate_reminder_outofquota", langCode)
 		}
 		if userGroup["user_group"] == "sponsor" && cf.Donation.BonusEnabled {
-			displayText += "\n\n🎉 作为赞助用户，你的使用限制增加了奖励倍数！感谢你的支持！"
+			displayText += I.GetLocalisedString("general.donated", langCode)
 		}
 		_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
 		return err
 	} else if (int(currentUsage["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
 		database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
 	}
-	sentMsg, err := ctx.EffectiveMessage.Reply(b, "🤖 正在处理你的贴纸，请稍候...", nil)
+	sentMsg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("stickers.processing", langCode), nil)
 	if err != nil {
 		return err
 	}
+	_, err = b.SendChatAction(ctx.EffectiveUser.Id, "upload_document", nil)
 	inlineKeyboard := gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
-					Text:         "获取整套贴纸包",
+					Text:         I.GetLocalisedString("stickers.getpack_callback", langCode),
 					CallbackData: fmt.Sprintf("get_pack_%s", sticker.SetName),
 					Style:        "primary",
 				},
@@ -126,11 +129,11 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err = fileSend.Close(); err != nil {
 		return err
 	}
-	displayText := "✅ 处理完成！"
+	displayText := I.GetLocalisedString("stickers.success", langCode)
 	if userGroup["user_group"] != "sponsor" && cf.Donation.Enabled {
 		n := rand.IntN(10) + 1
 		if n <= 2 { // 20% 的概率提示用户支持开发
-			displayText += "\n <blockquote>如果你喜欢这个项目，欢迎使用命令 /donate 支持开发</blockquote>"
+			displayText += I.GetLocalisedString("general.donate_reminder", langCode)
 		}
 	}
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
