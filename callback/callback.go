@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -230,7 +231,27 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Log(fmt.Sprintf("User %d failed to download sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelError)
 		return err
 	}
-	_, err = b.SendChatAction(ctx.EffectiveUser.Id, "upload_document", nil)
+	stopAction := make(chan struct{})
+	var stopActionOnce sync.Once
+	stopActionLoop := func() {
+		stopActionOnce.Do(func() {
+			close(stopAction)
+		})
+	}
+	go func() {
+		_, _ = b.SendChatAction(ctx.EffectiveUser.Id, "upload_document", nil)
+		ticker := time.NewTicker(4 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				_, _ = b.SendChatAction(ctx.EffectiveUser.Id, "upload_document", nil)
+			case <-stopAction:
+				return
+			}
+		}
+	}()
+	defer stopActionLoop()
 	if len(zipPaths) > 1 {
 		_, _, _ = b.EditMessageText(
 			fmt.Sprintf(I.GetLocalisedString("callback.getpack_toolarge", langCode), len(zipPaths)),
@@ -250,9 +271,11 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
 			})
 			os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id))
+			stopActionLoop()
 			return err
 		}
 	}
+	stopActionLoop()
 	cf, err := config.Init()
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to load config after downloading sticker pack: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)

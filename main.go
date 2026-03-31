@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -165,7 +164,6 @@ func main() {
 		err = os.Mkdir(logDir, 0755)
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to create log directory: %v", err), C.LogLevelFatal)
-			log.Fatal("failed to create log directory")
 		}
 	}
 	// 定时清理日志目录中的过期文件
