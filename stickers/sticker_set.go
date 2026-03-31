@@ -14,10 +14,12 @@ import (
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
 	"github.com/libost/sticker_go/database"
+	I "github.com/libost/sticker_go/i18n"
 	"github.com/libost/sticker_go/log"
 	"github.com/libost/sticker_go/utils"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
 type StickerPackLimitError struct {
@@ -31,7 +33,7 @@ func (e *StickerPackLimitError) Error() string {
 
 // GetStickerPack 下载贴纸包中所有贴纸并按 50MB 限制打包后返回本地 zip 路径列表。
 // 已缓存的贴纸会直接复用，无需重新下载。
-func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId int64) ([]string, error) {
+func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId int64, ctx *ext.Context) ([]string, error) {
 	stickerSet, err := b.GetStickerSet(stickerSetName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sticker set: %v", err)
@@ -77,7 +79,8 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		}
 		progressNow++
 		if progressNow == 1 || progressNow%5 == 0 || progressNow == packLength {
-			_, _, err = b.EditMessageText(fmt.Sprintf("🤖 正在处理贴纸包 %s... \n进度(%d/%d)", stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
+			langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+			_, _, err = b.EditMessageText(fmt.Sprintf(I.GetLocalisedString("stickers.pack_progress", langCode), stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
 				ChatId:    uid,
 				MessageId: messageId,
 			})
@@ -162,7 +165,8 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		filePaths = append(filePaths, convertedPath)
 	}
 	if tgsContained && cf.General.TgsSupport {
-		_, _, _ = b.EditMessageText("🤖 正在转换 TGS 贴纸...", &gotgbot.EditMessageTextOpts{
+		langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+		_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.tgs_converting", langCode), &gotgbot.EditMessageTextOpts{
 			ChatId:    uid,
 			MessageId: messageId,
 		})

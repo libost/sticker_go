@@ -18,6 +18,7 @@ import (
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
 	"github.com/libost/sticker_go/database"
+	I "github.com/libost/sticker_go/i18n"
 	"github.com/libost/sticker_go/log"
 	S "github.com/libost/sticker_go/stickers"
 	"github.com/libost/sticker_go/utils"
@@ -49,6 +50,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("donaterecord", getAllDonates))
 	dispatcher.AddHandler(handlers.NewCommand("refund", refund))
 	dispatcher.AddHandler(handlers.NewCommand("upgrade", upgrade))
+	dispatcher.AddHandler(handlers.NewCommand("lang", languages))
 }
 
 func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) {
@@ -56,33 +58,32 @@ func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) 
 	if err != nil {
 		return false, err
 	}
-	if !data["exists"].(bool) {
-		log.Log(fmt.Sprintf("User %d attempted to trigger /%s without a valid user record", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "😕 你没有权限使用这个命令。", nil)
-		database.Init("create", ctx.EffectiveUser.Id, nil)
-		return false, err
-	}
-	if data["user_group"].(string) != "admin" {
-		log.Log(fmt.Sprintf("User %d attempted to trigger /%s without permission", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "😕 你没有权限使用这个命令。", nil)
-		return false, err
-	}
-	return true, nil
-}
-
-func isAdminUser(userID int64) (bool, error) {
-	data, err := database.Init("user_group", userID, nil)
-	if err != nil {
-		return false, err
-	}
-	if !data["exists"].(bool) {
-		_, err = database.Init("create", userID, nil)
-		if err != nil {
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	switch command {
+	case "donate", "refund":
+		if !data["exists"].(bool) {
+			log.Log(fmt.Sprintf("User %d attempted to trigger /%s without a valid user record", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
+			database.Init("create", ctx.EffectiveUser.Id, nil)
+			return false, nil
+		} else if data["user_group"].(string) != "admin" {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	default:
+		if !data["exists"].(bool) {
+			log.Log(fmt.Sprintf("User %d attempted to trigger /%s without a valid user record", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
+			_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.permission_denied", langCode), nil)
+			database.Init("create", ctx.EffectiveUser.Id, nil)
 			return false, err
 		}
-		return false, nil
+		if data["user_group"].(string) != "admin" {
+			log.Log(fmt.Sprintf("User %d attempted to trigger /%s without permission", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
+			_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.permission_denied", langCode), nil)
+			return false, err
+		}
+		return true, nil
 	}
-	return data["user_group"].(string) == "admin", nil
 }
 
 func anyToInt64(v any) (int64, bool) {
@@ -98,13 +99,39 @@ func anyToInt64(v any) (int64, bool) {
 	}
 }
 
+func isTelegramLanguageCode(code string) bool {
+	if len(code) != 2 {
+		return false
+	}
+	for _, ch := range code {
+		if ch < 'a' || ch > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeTelegramLanguageCode(primaryCode, altCode string) (string, bool) {
+	primaryCode = strings.ToLower(strings.TrimSpace(primaryCode))
+	altCode = strings.ToLower(strings.TrimSpace(altCode))
+
+	if isTelegramLanguageCode(altCode) {
+		return altCode, true
+	}
+	if isTelegramLanguageCode(primaryCode) {
+		return primaryCode, true
+	}
+	return "", false
+}
+
 // start 处理器函数
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if ctx.EffectiveChat.Type != "private" {
-		_, err := ctx.EffectiveMessage.Reply(b, "👋 您好！使用命令 /get 并回复一条贴纸信息，我可以将其转换为图片或视频格式并发送给您。\n项目地址： https://github.com/libost/sticker_go", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.start_desc_group", langCode), nil)
 		return err
 	}
-	_, err := ctx.EffectiveMessage.Reply(b, "👋 您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。\n项目地址： https://github.com/libost/sticker_go", nil)
+	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.start_desc_private", langCode), nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -121,21 +148,18 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // help 处理器函数
 func help(b *gotgbot.Bot, ctx *ext.Context) error {
-	displayText := "/start - 开始使用机器人\n" +
-		"/help - 获取帮助信息\n" +
-		"/usage - 查看使用情况\n" +
-		"/about - 查看版本信息"
-	if ctx.EffectiveChat.Type != "private" {
-		displayText = "😇 请在私聊中使用这些命令哦！\n\n" + displayText
-	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	displayText := I.GetLocalisedString("commands.help_desc_private", langCode)
 	cf, err := config.Init()
 	if err != nil {
 		return err
 	}
 	if cf.Donation.Enabled {
-		displayText += "\n/donate - 向我们捐赠"
+		displayText += "\n" + I.GetLocalisedString("commands.help_desc_donate_enabled", langCode)
 	}
-
+	if ctx.EffectiveChat.Type != "private" {
+		displayText = I.GetLocalisedString("commands.help_desc_group", langCode)
+	}
 	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
@@ -153,8 +177,9 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // usage 处理器函数
 func usage(b *gotgbot.Bot, ctx *ext.Context) error {
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if ctx.EffectiveChat.Type != "private" && ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
-		_, err := ctx.EffectiveMessage.Reply(b, "😇 请在私聊/群组中使用这个命令哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.groupchat_only", langCode), nil)
 		return err
 	}
 	data, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
@@ -163,7 +188,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if !data["exists"].(bool) {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /usage without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "😇 你还没有使用记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.usage_desc_no_record", langCode), nil)
 		if err != nil {
 			return err
 		}
@@ -193,11 +218,11 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	var donationBonusExplanation string
 	if userGroup["user_group"].(string) == "sponsor" && cf.Donation.BonusEnabled {
 		limit = int(float64(limit) * C.DonationBonusMultiplier)
-		donationBonusExplanation = fmt.Sprintf(" \n(捐赠奖励: %g 倍)", C.DonationBonusMultiplier)
+		donationBonusExplanation = fmt.Sprintf(I.GetLocalisedString("commands.usage_desc_multiply", langCode), C.DonationBonusMultiplier)
 	}
 	remaining := max(limit-int(data["usage"].(float64)), 0)
 	nextRefresh := time.Unix(int64(data["last_cycle_starts_at"].(float64))+24*3600, 0).Format("2006-01-02 15:04:05")
-	info := fmt.Sprintf("🗒️ 使用信息:\n已使用: %d次\n剩余: %d次\n下次刷新: %s%s",
+	info := fmt.Sprintf(I.GetLocalisedString("commands.usage_desc", langCode),
 		int(data["usage"].(float64)), remaining, nextRefresh, donationBonusExplanation)
 	_, err = ctx.EffectiveMessage.Reply(b, info, nil)
 	log.Log(fmt.Sprintf("User %d triggered /usage", ctx.EffectiveUser.Id), C.LogLevelInfo)
@@ -209,6 +234,7 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /getstats 命令，忽略群聊和频道中的命令
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	isAdmin, err := checkAdmin(b, ctx, "getstats")
 	if isAdmin != true {
 		return nil
@@ -242,7 +268,7 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		runtime.ReadMemStats(&mem)
 		memoryBytes = mem.Alloc
 	}
-	info := fmt.Sprintf("📃 管理员统计信息:\n总用户数: %d\n总使用次数: %d\n近一周使用次数: %d\n当前缓存占用: %d MB\n当前内存使用: %d MB\n当前日志占用: %d MB",
+	info := fmt.Sprintf(I.GetLocalisedString("commands.getstats_details", langCode),
 		int(stats["stats"].(map[string]any)["total_users"].(float64)),
 		int(stats["stats"].(map[string]any)["total_usage"].(float64)),
 		int(stats["stats"].(map[string]any)["weekly_usage"].(float64)),
@@ -264,21 +290,22 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if !data["exists"].(bool) {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin without a valid user record", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "✍️ 正在创建用户记录。\n请重试你刚才的命令。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_no_records", langCode), nil)
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		return err
 	}
 	if data["user_group"].(string) == "admin" {
-		_, err := ctx.EffectiveMessage.Reply(b, "😇 你已经是管理员了。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_already", langCode), nil)
 		log.Log(fmt.Sprintf("User %d is already an admin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 		return err
 	}
 	arg := ctx.Args()
 	if len(arg) == 1 {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin without providing a key", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, err := ctx.EffectiveMessage.Reply(b, "🤔 请提供密钥。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_no_key", langCode), nil)
 		return err
 	}
 	cf, err := config.Init()
@@ -287,15 +314,14 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if arg[1] != cf.General.Adminkey {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin with incorrect key", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		displayText := "😵 密钥错误。"
-		_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_invalid_key", langCode), nil)
 		return err
 	}
 	_, err = database.Init("set_group", ctx.EffectiveUser.Id, map[string]any{"group": "admin"})
 	if err != nil {
 		return err
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "🫡 你现在是管理员了！", nil)
+	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_success", langCode), nil)
 	log.Log(fmt.Sprintf("User %d triggered /setadmin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
@@ -308,8 +334,9 @@ func resetUsage(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
-	_, err = ctx.EffectiveMessage.Reply(b, "🥳 使用记录已重置！", nil)
+	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.reset_success", langCode), nil)
 	log.Log(fmt.Sprintf("User %d triggered /reset", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
@@ -322,16 +349,16 @@ func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	cacheDir := C.CacheDir
-	err = os.RemoveAll(cacheDir)
+	err = os.RemoveAll(C.CacheDir)
 	if err != nil {
 		return err
 	}
-	err = os.Mkdir(cacheDir, 0755)
+	err = os.Mkdir(C.CacheDir, 0755)
 	if err != nil {
 		return err
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "📄 缓存已清空！", nil)
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.clearcache_success", langCode), nil)
 	log.Log(fmt.Sprintf("User %d triggered /clearcache", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 
@@ -345,46 +372,92 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	commands := []gotgbot.BotCommand{
-		{Command: "start", Description: "开始使用机器人"},
-		{Command: "help", Description: "获取帮助信息"},
-		{Command: "usage", Description: "查看使用情况"},
-		{Command: "about", Description: "查看版本信息"},
-	}
-	cf, err := config.Init()
-	if cf.Donation.Enabled {
-		commands = append(commands, gotgbot.BotCommand{Command: "donate", Description: "向我们捐赠"})
-	}
-	opts := gotgbot.SetMyCommandsOpts{
-		Scope: gotgbot.BotCommandScopeAllPrivateChats{},
-	}
-	_, err = b.SetMyCommands(commands, &opts)
+	// TODO: language-specific commands
+	supportedLanguages, _, err := I.GetAllSupportedLanguages()
 	if err != nil {
 		return err
 	}
-	commands = []gotgbot.BotCommand{
-		{Command: "start", Description: "开始使用贴纸下载机器人"},
-		{Command: "get", Description: "获取回复信息中的贴纸"},
-		{Command: "help", Description: "获取贴纸下载机器人的帮助信息"},
-		{Command: "usage", Description: "查看使用情况"},
-		{Command: "about", Description: "查看版本信息"},
+	for idx, lang := range supportedLanguages {
+		keyIndex := idx + 1
+		name := lang[fmt.Sprintf("name_%d", keyIndex)]
+		code := lang[fmt.Sprintf("code_%d", keyIndex)]
+		codeAlt := lang[fmt.Sprintf("code_alt_%d", keyIndex)]
+		if name == "" || code == "" {
+			continue
+		}
+		languageCode, ok := normalizeTelegramLanguageCode(code, codeAlt)
+		if !ok {
+			log.Log(fmt.Sprintf("Skipping private commands for language %s due to invalid Telegram language code (code=%s, code_alt=%s)", name, code, codeAlt), C.LogLevelWarn)
+			continue
+		}
+		commands := []gotgbot.BotCommand{
+			{Command: "start", Description: I.GetLocalisedString("commands.setcommands_desc_list[0]", code)},
+			{Command: "help", Description: I.GetLocalisedString("commands.setcommands_desc_list[1]", code)},
+			{Command: "usage", Description: I.GetLocalisedString("commands.setcommands_desc_list[2]", code)},
+			{Command: "lang", Description: I.GetLocalisedString("commands.setcommands_desc_list[9]", code)},
+			{Command: "about", Description: I.GetLocalisedString("commands.setcommands_desc_list[3]", code)},
+		}
+		cf, err := config.Init()
+		if cf.Donation.Enabled {
+			commands = append(commands, gotgbot.BotCommand{Command: "donate", Description: I.GetLocalisedString("commands.setcommands_desc_list[4]", code)})
+		}
+		if languageCode == "en" {
+			languageCode = "" // Default language commands should be set with empty language code in Telegram
+		}
+		opts := gotgbot.SetMyCommandsOpts{
+			Scope:        gotgbot.BotCommandScopeAllPrivateChats{},
+			LanguageCode: languageCode,
+		}
+		_, err = b.SetMyCommands(commands, &opts)
+		if err != nil {
+			return err
+		}
 	}
-	opts = gotgbot.SetMyCommandsOpts{
-		Scope: gotgbot.BotCommandScopeAllGroupChats{},
+
+	for idx, lang := range supportedLanguages {
+		keyIndex := idx + 1
+		name := lang[fmt.Sprintf("name_%d", keyIndex)]
+		code := lang[fmt.Sprintf("code_%d", keyIndex)]
+		code_alt := lang[fmt.Sprintf("code_alt_%d", keyIndex)]
+		if name == "" || code == "" {
+			continue
+		}
+		languageCode, ok := normalizeTelegramLanguageCode(code, code_alt)
+		if !ok {
+			log.Log(fmt.Sprintf("Skipping group commands for language %s due to invalid Telegram language code (code=%s, code_alt=%s)", name, code, code_alt), C.LogLevelWarn)
+			continue
+		}
+		commands := []gotgbot.BotCommand{
+			{Command: "start", Description: I.GetLocalisedString("commands.setcommands_desc_list[5]", code)},
+			{Command: "get", Description: I.GetLocalisedString("commands.setcommands_desc_list[6]", code)},
+			{Command: "help", Description: I.GetLocalisedString("commands.setcommands_desc_list[7]", code)},
+			{Command: "usage", Description: I.GetLocalisedString("commands.setcommands_desc_list[2]", code)},
+			{Command: "lang", Description: I.GetLocalisedString("commands.setcommands_desc_list[9]", code)},
+			{Command: "about", Description: I.GetLocalisedString("commands.setcommands_desc_list[8]", code)},
+		}
+		if languageCode == "en" {
+			languageCode = "" // Default language commands should be set with empty language code in Telegram
+		}
+		opts := gotgbot.SetMyCommandsOpts{
+			Scope:        gotgbot.BotCommandScopeAllGroupChats{},
+			LanguageCode: languageCode,
+		}
+		_, err = b.SetMyCommands(commands, &opts)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = b.SetMyCommands(commands, &opts)
-	if err != nil {
-		return err
-	}
-	_, err = ctx.EffectiveMessage.Reply(b, "📄 命令列表已更新！", nil)
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setcommands_success", langCode), nil)
 	log.Log(fmt.Sprintf("User %d triggered /setcommands", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
 
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
-	displayText := fmt.Sprintf("版本: <code>%s</code>\n构建时间: <code>%s</code>\nGit 提交: <code>%s</code>\n分支: <code>%s</code>\n项目地址: https://github.com/libost/sticker_go", V.Version, V.BuildTime, V.GitCommit, V.Branch)
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	displayText := fmt.Sprintf(I.GetLocalisedString("commands.about_desc", langCode), V.Version, V.BuildTime, V.GitCommit, V.Branch)
 	if ctx.EffectiveChat.Type != "private" {
-		displayText = "😇 检测到群聊环境，部分功能已禁用\n\n" + displayText
+		displayText = I.GetLocalisedString("commands.about_desc_group", langCode) + displayText
 	}
 	if ctx.EffectiveChat.Type == "channel" {
 		return nil // 频道中不响应 /about 命令
@@ -404,15 +477,16 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
-				{Text: "确认", CallbackData: "clear_logs_confirm", Style: "danger"},
-				{Text: "取消", CallbackData: "clear_logs_cancel", Style: "primary"},
+				{Text: I.GetLocalisedString("general.confirm", langCode), CallbackData: "clear_logs_confirm", Style: "danger"},
+				{Text: I.GetLocalisedString("general.cancel", langCode), CallbackData: "clear_logs_cancel", Style: "primary"},
 			},
 		},
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "🧐 真的要清除日志吗？\n此操作不可逆！", &gotgbot.SendMessageOpts{
+	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.clearlogs_desc", langCode), &gotgbot.SendMessageOpts{
 		ReplyMarkup: inlineKeyboard,
 	})
 	log.Log(fmt.Sprintf("User %d triggered /clearlogs", ctx.EffectiveUser.Id), C.LogLevelInfo)
@@ -427,7 +501,8 @@ func restart(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, "🤖 正在重启机器人...", nil)
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.restart_desc", langCode), nil)
 	log.Log(fmt.Sprintf("User %d triggered /restart", ctx.EffectiveUser.Id), C.LogLevelWarn)
 	if err != nil {
 		return err
@@ -477,18 +552,19 @@ func shutdown(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	displayText := "🤖真的要关闭机器人吗？\n此操作不可逆！"
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	displayText := I.GetLocalisedString("commands.shutdown_desc", langCode)
 	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		_, exists := os.LookupEnv("INVOCATION_ID")
 		if exists {
-			displayText += "\n警告：当前环境似乎是 systemd 管理的服务，确认后机器人可能再次被启动。"
+			displayText += I.GetLocalisedString("commands.shutdown_desc_systemd", langCode)
 		}
 	}
 	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
-				{Text: "确认", CallbackData: "shutdown_confirm", Style: "danger"},
-				{Text: "取消", CallbackData: "shutdown_cancel", Style: "primary"},
+				{Text: I.GetLocalisedString("general.confirm", langCode), CallbackData: "shutdown_confirm", Style: "danger"},
+				{Text: I.GetLocalisedString("general.cancel", langCode), CallbackData: "shutdown_cancel", Style: "primary"},
 			},
 		},
 	}
@@ -510,31 +586,24 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
-	displayText := "🤖 管理员命令列表：\n" +
-		"/getstats - 获取统计信息\n" +
-		"/reset - 重置当前用户的使用记录\n" +
-		"/clearcache - 清空缓存文件\n" +
-		"/setcommands - 设置机器人命令列表\n" +
-		"/clearlogs - 清除日志文件\n" +
-		"/donaterecord - 查看所有捐赠记录\n" +
-		"/upgrade - 更新机器人\n" +
-		"/restart - 重启机器人\n" +
-		"/shutdown - 关闭机器人"
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	displayText := I.GetLocalisedString("commands.admin_commands_list", langCode)
 	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
 	log.Log(fmt.Sprintf("User %d triggered /admin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
 
 func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if ctx.EffectiveChat.Type == "private" {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤗请在群聊中使用这个命令哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_nosticker", langCode), nil)
 		return err
 	}
 	if ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
 		return nil // 仅允许在群聊中使用 /get 命令，忽略私聊和频道中的命令
 	}
 	if ctx.EffectiveMessage.ReplyToMessage == nil || ctx.EffectiveMessage.ReplyToMessage.Sticker == nil {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤗 请回复一个贴纸消息并使用这个命令哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_nosticker", langCode), nil)
 		return err
 	}
 	cf, err := config.Init()
@@ -551,7 +620,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	limit := cf.General.Limit
 	if int(currentUsage["usage"].(float64)) >= limit {
-		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("🥺 您已达到使用上限 (%d 次)，请稍后再试！", limit), nil)
+		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("commands.out_of_quota", langCode), limit), nil)
 		return err
 	}
 	if cf.Subscription.Enabled {
@@ -559,7 +628,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err != nil {
 			channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
 			if errors.Is(err, utils.ErrUserNotSubscribed) {
-				displayText := fmt.Sprintf("🤖 为了支持我们的项目并继续提供免费服务，请先加入<a href=\"https://t.me/%s\">官方频道</a> %s 后再使用本功能哦！\n✅ 加入后请再次点击您刚才发送的命令即可继续。", channel, cf.Subscription.Channel)
+				displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, cf.Subscription.Channel)
 				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 					ParseMode: "HTML",
 				})
@@ -568,7 +637,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 				}
 				return nil
 			}
-			displayText := fmt.Sprintf("🤖 订阅检查失败，请稍后重试。\n您确定订阅了我们的<a href=\"https://t.me/%s\">官方频道</a> %s 吗？", channel, cf.Subscription.Channel)
+			displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, cf.Subscription.Channel)
 			_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 				ParseMode: "HTML",
 			})
@@ -577,7 +646,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 	}
-	msg, err := ctx.EffectiveMessage.Reply(b, "😏 正在发送贴纸文件，请稍候...", nil)
+	msg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("general.sending_sticker", langCode), nil)
 	if err != nil {
 		return err
 	}
@@ -600,7 +669,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	_, _, err = b.EditMessageText("😏 贴纸文件发送完成！\n想获得整套贴纸包？请在私聊中与机器人对话。", &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText(I.GetLocalisedString("commands.get_desc_success", langCode), &gotgbot.EditMessageTextOpts{
 		ChatId:    msg.Chat.Id,
 		MessageId: msg.MessageId,
 	})
@@ -612,12 +681,13 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /donate 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := isAdminUser(ctx.EffectiveUser.Id)
+	isAdmin, err := checkAdmin(b, ctx, "donate")
 	if err != nil {
 		return err
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if isAdmin {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤖 管理员不需要捐赠哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.donate_admin_refuse", langCode), nil)
 		return err
 	}
 	cf, err := config.Init()
@@ -625,7 +695,7 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if !cf.Donation.Enabled {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤗 感谢您的好意，但目前我们还不接受捐赠哦！", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.donate_disabled", langCode), nil)
 		if err != nil {
 			return err
 		}
@@ -633,7 +703,7 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	arg := ctx.Args()
 	price := gotgbot.LabeledPrice{
-		Label:  "支持开发者",
+		Label:  I.GetLocalisedString("commands.donate_price_label", langCode),
 		Amount: 50, // 金额单位为Telegram Stars
 	}
 	if len(arg) > 1 {
@@ -652,7 +722,7 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	payload := fmt.Sprintf("donate_%s", payloadUuid)
 	description := cf.Donation.Description
 	if cf.Donation.BonusEnabled {
-		description += fmt.Sprintf("\n\n🎁 额外奖励：使用限制提升至原有的 %g 倍", C.DonationBonusMultiplier)
+		description += fmt.Sprintf(I.GetLocalisedString("commands.donate_desc_muliplier_enabled", langCode), C.DonationBonusMultiplier)
 	}
 	_, err = b.SendInvoice(ctx.EffectiveUser.Id, cf.Donation.Title, description, payload, "XTR", []gotgbot.LabeledPrice{price}, &gotgbot.SendInvoiceOpts{
 		ProtectContent: true,
@@ -676,13 +746,14 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if len(donates["donates"].([]map[string]any)) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "😐 目前没有任何捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.getalldonates_notfound", langCode), nil)
 		return err
 	}
 	args := ctx.Args()
 	var displayText strings.Builder
-	displayText.WriteString("📄 所有捐赠记录：\n")
+	displayText.WriteString(I.GetLocalisedString("commands.getalldonates_desc", langCode))
 	recordLength := 0
 	for _, donate := range donates["donates"].([]map[string]any) {
 		timestamp, ok := anyToInt64(donate["timestamp"])
@@ -697,11 +768,11 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 		userID, _ := anyToInt64(donate["user_id"])
 		amount, _ := anyToInt64(donate["amount"])
 		timeFormatted := time.Unix(timestamp, 0).Format("2006-01-02 15:04:05")
-		fmt.Fprintf(&displayText, "用户ID: %d, 金额: %d, 时间: %s，状态: %s\n", userID, amount, timeFormatted, donate["status"])
+		fmt.Fprintf(&displayText, I.GetLocalisedString("commands.getalldonates_desc_item", langCode), userID, amount, timeFormatted, donate["status"])
 		recordLength++
 	}
 	if recordLength == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "😐 没有符合条件的捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.getalldonates_no_applicants", langCode), nil)
 		return err
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, displayText.String(), nil)
@@ -713,12 +784,13 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /refund 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := isAdminUser(ctx.EffectiveUser.Id)
+	isAdmin, err := checkAdmin(b, ctx, "refund")
 	if err != nil {
 		return err
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if isAdmin {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤖 管理员无需退款", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.refund_admin_refuse", langCode), nil)
 		if err != nil {
 			return err
 		}
@@ -729,7 +801,7 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	if len(data["donations"].([]map[string]any)) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "🥺 您没有任何捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.refund_norecords", langCode), nil)
 		return err
 	}
 	timeNow := time.Now().Unix()
@@ -744,12 +816,12 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	if len(refundableDonations) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "🥺 很抱歉，您的捐赠已超过可退款期限。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.refund_expired", langCode), nil)
 		return err
 	}
 	var displayText strings.Builder
 	InlineKeyboard := [][]gotgbot.InlineKeyboardButton{}
-	displayText.WriteString("📄 您有以下捐赠记录符合退款条件：\n")
+	displayText.WriteString(I.GetLocalisedString("commands.refund_desc", langCode))
 	for i, donation := range refundableDonations {
 		timestamp, ok := anyToInt64(donation["timestamp"])
 		if !ok {
@@ -762,17 +834,17 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 		timeFormatted := time.Unix(timestamp, 0).Format("2006-01-02 15:04:05")
 		InlineKeyboard = append(InlineKeyboard, []gotgbot.InlineKeyboardButton{
 			{
-				Text:         fmt.Sprintf("申请退款 %d", i+1),
+				Text:         fmt.Sprintf(I.GetLocalisedString("commands.refund_callback", langCode), i+1),
 				CallbackData: fmt.Sprintf("refund_apply_%s", telegramChargeID),
 				Style:        "primary",
 			},
 		})
 
 		amount, _ := anyToInt64(donation["amount"])
-		fmt.Fprintf(&displayText, "%d. 金额: %d, 时间: %s\n", i+1, amount, timeFormatted)
+		fmt.Fprintf(&displayText, I.GetLocalisedString("commands.refund_desc_item", langCode), i+1, amount, timeFormatted)
 	}
 	if len(InlineKeyboard) == 0 {
-		_, err := ctx.EffectiveMessage.Reply(b, "🥺 没有可用于申请退款的有效捐赠记录。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.refund_desc_no_applicable", langCode), nil)
 		return err
 	}
 
@@ -792,19 +864,13 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /upgrade 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := isAdminUser(ctx.EffectiveUser.Id)
-	if err != nil {
-		return err
-	}
-	if !isAdmin {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤖 只有管理员才能使用此命令。", nil)
-		if err != nil {
-			return err
-		}
+	isAdmin, err := checkAdmin(b, ctx, "upgrade")
+	if isAdmin != true {
 		return nil
 	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if V.Version == "dev" {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤖 当前版本为开发版本，无法检查更新。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_dev", langCode), nil)
 		return err
 	}
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", C.Owner, C.Repo)
@@ -822,7 +888,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤖 无法获取最新版本信息，请稍后再试。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_failed", langCode), nil)
 		if err != nil {
 			return err
 		}
@@ -833,7 +899,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	body, _ := io.ReadAll(resp.Body)
 	var release GitHubRelease
 	if err := json.Unmarshal(body, &release); err != nil {
-		_, err := ctx.EffectiveMessage.Reply(b, "🤖 无法解析最新版本信息，请稍后再试。", nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_failed", langCode), nil)
 		if err != nil {
 			return err
 		}
@@ -843,31 +909,64 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	latestVersion := release.TagName
 
 	if latestVersion == V.Version {
-		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("🤖 当前已经是最新版本了！版本号: <a href='%s'>%s</a>", C.RepoURL, V.Version), &gotgbot.SendMessageOpts{
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_latest", langCode), &gotgbot.SendMessageOpts{
 			ParseMode: "HTML",
 		})
 		return err
 	}
-	displayText := fmt.Sprintf("🤖 有新版本可用！最新版本: <a href='%s'>%s</a>", C.RepoURL, latestVersion)
+	displayText := fmt.Sprintf(I.GetLocalisedString("commands.upgrade_desc_new", langCode), C.RepoURL, latestVersion)
 	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
-					Text:         "立即更新",
+					Text:         I.GetLocalisedString("commands.upgrade_confirm", langCode),
 					CallbackData: "upgrade_true",
 					Style:        "success",
 				},
 				{
-					Text:         "稍后再说",
+					Text:         I.GetLocalisedString("commands.upgrade_cancel", langCode),
 					CallbackData: "upgrade_false",
 					Style:        "primary",
 				},
 			},
 		},
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, displayText+"\n是否更新？", &gotgbot.SendMessageOpts{
+	_, err = ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 		ParseMode:   "HTML",
 		ReplyMarkup: inlineKeyboard,
 	})
 	return err
+}
+
+func languages(b *gotgbot.Bot, ctx *ext.Context) error {
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	supportedLanguages, _, err := I.GetAllSupportedLanguages()
+	if err != nil {
+		return err
+	}
+	displayText := I.GetLocalisedString("commands.languages_desc", langCode)
+	inlineKeyboard := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{},
+	}
+	for idx, lang := range supportedLanguages {
+		keyIndex := idx + 1
+		name := lang[fmt.Sprintf("name_%d", keyIndex)]
+		code := lang[fmt.Sprintf("code_%d", keyIndex)]
+		if name == "" || code == "" {
+			continue
+		}
+		inlineKeyboard.InlineKeyboard = append(inlineKeyboard.InlineKeyboard, []gotgbot.InlineKeyboardButton{
+			{
+				Text:         name,
+				CallbackData: fmt.Sprintf("setlang_%s", code),
+				Style:        "primary",
+			},
+		})
+	}
+	_, err = ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+		ReplyMarkup:    inlineKeyboard,
+		ProtectContent: true,
+	})
+	return err
+
 }

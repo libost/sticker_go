@@ -175,6 +175,53 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 
 	switch request {
 	case "init":
+		rows, err := conn.Query("PRAGMA table_info(USERPOOL)")
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		hasLanguageCode := false
+		for rows.Next() {
+			var cid int
+			var name string
+			var colType string
+			var notNull int
+			var defaultValue sql.NullString
+			var pk int
+			if err := rows.Scan(&cid, &name, &colType, &notNull, &defaultValue, &pk); err != nil {
+				return nil, err
+			}
+			if name == "language_code" {
+				hasLanguageCode = true
+				break
+			}
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+
+		if !hasLanguageCode {
+			if _, err := conn.Exec("ALTER TABLE USERPOOL ADD COLUMN language_code TEXT"); err != nil {
+				return nil, err
+			}
+		}
+
+		if id > 0 {
+			var languageCode sql.NullString
+			err := conn.QueryRow("SELECT language_code FROM USERPOOL WHERE user_id = ?", id).Scan(&languageCode)
+			if err == sql.ErrNoRows {
+				return data, nil
+			}
+			if err != nil {
+				return nil, err
+			}
+			if languageCode.Valid && languageCode.String != "" {
+				data["language_code"] = languageCode.String
+			} else {
+				data["language_code"] = "en"
+			}
+		}
 		return data, nil
 	case "create":
 		if id <= 0 {
@@ -475,6 +522,42 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 		}
 		data["last_cleanup_at"] = float64(lastCleanup)
 		return data, nil
+	case "language_code":
+		requestType := other["type"]
+		data["exists"] = true
+		switch requestType {
+		case "get":
+			if id <= 0 {
+				return data, nil
+			}
+			var languageCode sql.NullString
+			err := conn.QueryRow("SELECT language_code FROM USERPOOL WHERE user_id = ?", id).Scan(&languageCode)
+			if err == sql.ErrNoRows || !languageCode.Valid {
+				data["language_exists"] = false
+				return data, nil
+			}
+			if err != nil {
+				return nil, err
+			}
+			data["language_code"] = languageCode.String
+			data["language_exists"] = true
+			return data, nil
+		case "set":
+			if id <= 0 {
+				return data, nil
+			}
+			languageCode, ok := other["language_code"].(string)
+			if !ok {
+				return nil, fmt.Errorf("missing language_code")
+			}
+			if _, err := conn.Exec("UPDATE USERPOOL SET language_code = ? WHERE user_id = ?", languageCode, id); err != nil {
+				return nil, err
+			}
+			data["language_code"] = languageCode
+			return data, nil
+		default:
+			return nil, fmt.Errorf("unsupported language_code request type: %s", requestType)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported request: %s", request)
 	}

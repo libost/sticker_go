@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS USERPOOL (
     usage_count INTEGER DEFAULT 0,
     total_usage_count INTEGER DEFAULT 0,
     user_group TEXT DEFAULT 'user',
+    language_code TEXT,
     timezone TEXT
 ); 
 
