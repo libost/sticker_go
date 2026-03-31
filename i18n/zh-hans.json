@@ -8,6 +8,7 @@
         "start_desc_private": "👋 您好！向我发送贴纸，我可以将其转换为图片或视频格式并发送给您。\n当前显示语言不是您的偏好？使用命令 /lang 设置语言\n项目地址： https://github.com/libost/sticker_go",
         "get": "获取回复信息中的贴纸",
         "get_desc_nosticker": "🤗 请回复一个贴纸消息并使用这个命令哦！",
+        "get_desc_private": "🤗 请在群聊中使用这个命令哦！",
         "get_desc_success": "😏 贴纸文件发送完成！\n想获得整套贴纸包？请在私聊中与机器人对话。",
         "help": "获取帮助信息",
         "help_desc_private": "/start - 开始使用机器人\n/help - 获取帮助信息\n/usage - 查看使用情况\n/lang - 设置语言\n/about - 查看版本信息",

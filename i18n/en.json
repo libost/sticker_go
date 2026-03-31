@@ -8,6 +8,7 @@
         "start_desc_private": "👋 Hello! Send me a sticker, and I will convert it to image or video format and send it to you.\nIs the current display language not your preference? Use the command /lang to set the language.\nProject URL: https://github.com/libost/sticker_go",
         "get": "Get the sticker from the replied message",
         "get_desc_nosticker": "🤗 Please reply to a sticker message and use this command!",
+        "get_desc_private": "🤗 Please use this command in a group chat!",
         "get_desc_success": "😏 Sticker file sent successfully!\nWant the entire sticker pack? Chat with the bot in private.",
         "help": "Get help information",
         "help_desc_private": "/start - Start using the bot\n/help - Get help information\n/usage - View usage information\n/lang - Set language\n/about - View version information",

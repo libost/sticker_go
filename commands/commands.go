@@ -596,7 +596,7 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if ctx.EffectiveChat.Type == "private" {
-		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_nosticker", langCode), nil)
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_private", langCode), nil)
 		return err
 	}
 	if ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
