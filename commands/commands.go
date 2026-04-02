@@ -131,6 +131,34 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()
 	if len(args) > 1 {
 		// 处理 start 参数，例如 deep linking
+		cfg, err := config.Init()
+		if err != nil {
+			return err
+		}
+		if cfg.Subscription.Enabled {
+			err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
+			if err != nil {
+				channel := strings.TrimPrefix(cfg.Subscription.Channel, "@")
+				if errors.Is(err, utils.ErrUserNotSubscribed) {
+					displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, cfg.Subscription.Channel)
+					_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+						ParseMode: "HTML",
+					})
+					if replyErr != nil {
+						return replyErr
+					}
+					return nil
+				}
+				displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, cfg.Subscription.Channel)
+				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+					ParseMode: "HTML",
+				})
+				if replyErr != nil {
+					return replyErr
+				}
+				return nil
+			}
+		}
 		param := args[1]
 		log.Log(fmt.Sprintf("User %d triggered /start with parameter: %s", ctx.EffectiveUser.Id, param), C.LogLevelInfo)
 		msg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_processing", langCode), nil)
