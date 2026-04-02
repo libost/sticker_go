@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/libost/sticker_go/callback"
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
 	"github.com/libost/sticker_go/database"
@@ -127,6 +128,23 @@ func normalizeTelegramLanguageCode(primaryCode, altCode string) (string, bool) {
 // start 处理器函数
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	args := ctx.Args()
+	if len(args) > 0 {
+		// 处理 start 参数，例如 deep linking
+		param := args[1]
+		log.Log(fmt.Sprintf("User %d triggered /start with parameter: %s", ctx.EffectiveUser.Id, param), C.LogLevelInfo)
+		msg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_processing", langCode), nil)
+		if err != nil {
+			return err
+		}
+		err = callback.GetPack(b, ctx, param, langCode, msg.GetMessageId())
+		if err != nil {
+			log.Log(fmt.Sprintf("User %d failed to get sticker pack with parameter %s: %v", ctx.EffectiveUser.Id, param, err), C.LogLevelError)
+			_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_failed", langCode), nil)
+			return err
+		}
+		return nil
+	}
 	if ctx.EffectiveChat.Type != "private" {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.start_desc_group", langCode), nil)
 		return err
@@ -620,7 +638,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	limit := cf.General.Limit
 	if int(currentUsage["usage"].(float64)) >= limit {
-		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("commands.out_of_quota", langCode), limit), nil)
+		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("general.out_of_quota", langCode), limit), nil)
 		return err
 	}
 	if cf.Subscription.Enabled {
@@ -669,9 +687,21 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
+	inlineKeyboard := gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:  I.GetLocalisedString("commands.get_desc_success_deeplink", langCode),
+					Url:   fmt.Sprintf("https://t.me/%s?start=%s", b.Username, sticker.SetName),
+					Style: "primary",
+				},
+			},
+		},
+	}
 	_, _, err = b.EditMessageText(I.GetLocalisedString("commands.get_desc_success", langCode), &gotgbot.EditMessageTextOpts{
-		ChatId:    msg.Chat.Id,
-		MessageId: msg.MessageId,
+		ChatId:      msg.Chat.Id,
+		MessageId:   msg.MessageId,
+		ReplyMarkup: inlineKeyboard,
 	})
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
 	return err

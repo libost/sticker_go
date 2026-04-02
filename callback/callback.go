@@ -182,29 +182,8 @@ func removeZipFiles(zipPaths []string) {
 	}
 }
 
-func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	callbackData := ctx.CallbackQuery.Data
-	packName := strings.TrimPrefix(callbackData, "get_pack_")
-
-	// 先回应回调查询，避免客户端超时
-	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	_, err := ctx.CallbackQuery.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-		Text: I.GetLocalisedString("callback.getpack_answer", langCode),
-	})
-	if err != nil {
-		return err
-	}
-
-	_, _, err = b.EditMessageText(I.GetLocalisedString("callback.getpack_answer", langCode), &gotgbot.EditMessageTextOpts{
-		ChatId:    ctx.EffectiveChat.Id,
-		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
-	})
-	if err != nil {
-		return err
-	}
-	log.Log(fmt.Sprintf("User %d triggered getPackHandler for pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
-
-	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, ctx.CallbackQuery.Message.GetMessageId(), ctx)
+func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string, msgId int64) error {
+	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, msgId, ctx)
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {
 		cf, err := config.Init()
@@ -218,7 +197,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		_, _, _ = b.EditMessageText(msg, &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
-			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			MessageId: msgId,
 		})
 		log.Log(fmt.Sprintf("User %d attempted to download a sticker pack with too many stickers", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		return err
@@ -226,7 +205,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.getpack_failed", langCode), &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
-			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			MessageId: msgId,
 		})
 		log.Log(fmt.Sprintf("User %d failed to download sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelError)
 		return err
@@ -257,7 +236,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			fmt.Sprintf(I.GetLocalisedString("callback.getpack_toolarge", langCode), len(zipPaths)),
 			&gotgbot.EditMessageTextOpts{
 				ChatId:    ctx.EffectiveChat.Id,
-				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+				MessageId: msgId,
 			},
 		)
 	}
@@ -268,7 +247,7 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			removeZipFiles(zipPaths)
 			_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.getpack_failed", langCode), &gotgbot.EditMessageTextOpts{
 				ChatId:    ctx.EffectiveChat.Id,
-				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+				MessageId: msgId,
 			})
 			os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id))
 			stopActionLoop()
@@ -297,13 +276,43 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		displayText,
 		&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
-			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			MessageId: msgId,
 			ParseMode: "HTML",
 		},
 	)
 	log.Log(fmt.Sprintf("User %d successfully downloaded sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
 	removeZipFiles(zipPaths)
 	os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id)) // 下载完成后清理用户临时目录
+	return nil
+}
+
+func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	callbackData := ctx.CallbackQuery.Data
+	packName := strings.TrimPrefix(callbackData, "get_pack_")
+
+	// 先回应回调查询，避免客户端超时
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	_, err := ctx.CallbackQuery.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+		Text: I.GetLocalisedString("callback.getpack_answer", langCode),
+	})
+	if err != nil {
+		return err
+	}
+
+	_, _, err = b.EditMessageText(I.GetLocalisedString("callback.getpack_answer", langCode), &gotgbot.EditMessageTextOpts{
+		ChatId:    ctx.EffectiveChat.Id,
+		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+	})
+	if err != nil {
+		return err
+	}
+	log.Log(fmt.Sprintf("User %d triggered getPackHandler for pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelInfo)
+
+	err = GetPack(b, ctx, packName, langCode, ctx.CallbackQuery.Message.GetMessageId())
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to get sticker pack %s: %v", ctx.EffectiveUser.Id, packName, err), C.LogLevelError)
+		return err
+	}
 	return nil
 }
 
