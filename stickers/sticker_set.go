@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
@@ -63,6 +65,27 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 	tgsContained := false
 	tgsFileIDs := make([]string, 0)
 	progressNow := 0
+	stopAction := make(chan struct{})
+	var stopActionOnce sync.Once
+	stopActionLoop := func() {
+		stopActionOnce.Do(func() {
+			close(stopAction)
+		})
+	}
+	go func() {
+		_, _ = b.SendChatAction(ctx.EffectiveUser.Id, "typing", nil)
+		ticker := time.NewTicker(4 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				_, _ = b.SendChatAction(ctx.EffectiveUser.Id, "typing", nil)
+			case <-stopAction:
+				return
+			}
+		}
+	}()
+	defer stopActionLoop()
 	for _, sticker := range stickerSet.Stickers {
 		var fileExt, fileExtConverted string
 		switch {
@@ -84,7 +107,6 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 				ChatId:    uid,
 				MessageId: messageId,
 			})
-
 		}
 
 		// 优先使用缓存，把缓存的文件复制到临时目录进行处理，避免直接在缓存目录进行转换操作导致的并发问题
@@ -229,6 +251,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 	}
 	usage := max(math.Ceil(float64(len(stickerSet.Stickers))/2)-1, 1) // 按照每 2 个贴纸计 1 次使用，向上取整，最后减去 1 次（因为第一次使用不计数）,最少计 1 次
 	database.Init("usageRecord", uid, map[string]any{"usage": usage})
+	stopActionLoop() // 停止发送 typing action
 	return zipPaths, nil
 }
 
