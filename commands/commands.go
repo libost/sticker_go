@@ -129,7 +129,7 @@ func normalizeTelegramLanguageCode(primaryCode, altCode string) (string, bool) {
 func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	args := ctx.Args()
-	if len(args) > 0 {
+	if len(args) > 1 {
 		// 处理 start 参数，例如 deep linking
 		param := args[1]
 		log.Log(fmt.Sprintf("User %d triggered /start with parameter: %s", ctx.EffectiveUser.Id, param), C.LogLevelInfo)
