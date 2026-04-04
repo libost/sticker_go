@@ -66,6 +66,7 @@
         "shutdown_desc_systemd": "\n警告：目前環境似乎是 systemd 管理的服務，確認後機器人可能會再次啟動。",
         "admin_commands_list": "管理者指令列表：\n/donaterecord - 取得所有捐贈記錄\n/getstats - 取得統計信息\n/resetusage - 重置使用記錄\n/clearcache - 清理快取\n/setcommands - 設置命令列表\n/clearlogs - 清除日誌\n/upgrade - 更新機器人\n/restart - 重啟機器人\n/shutdown - 關閉機器人",
         "upgrade_desc_dev": "🤖 當前版本為開發版本，無法檢查更新。",
+        "upgrade_desc_docker": "🤖 當前環境為 Docker，無法檢查更新。",
         "upgrade_desc_failed": "🤖 無法獲取最新版本信息，請稍後再試。",
         "upgrade_desc_latest": "🤖 當前已經是最新版本了！版本號: <a href='%[1]s'>%[2]s</a>",
         "upgrade_desc_new": "🤖 有新版本可用！最新版本: <a href='%[1]s'>%[2]s</a>\n是否更新？",

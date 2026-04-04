@@ -931,6 +931,10 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_dev", langCode), nil)
 		return err
 	}
+	if os.Getenv("IN_DOCKER") == "true" {
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_docker", langCode), nil)
+		return err
+	}
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", C.Owner, C.Repo)
 
 	client := &http.Client{Timeout: 10 * time.Second}
