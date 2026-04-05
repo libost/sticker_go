@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image/png"
@@ -52,9 +53,10 @@ func DecodeTgsToGIF(dir string) error {
 	if err != nil {
 		return err
 	}
+	mountSourcePath := resolveDockerMountSourcePath(absPath)
 	args := []string{
 		"run", "--rm",
-		"-v", fmt.Sprintf("%s:/source", absPath),
+		"-v", fmt.Sprintf("%s:/source", mountSourcePath),
 		"edasriyan/lottie-to-gif",
 	}
 	cmd := exec.Command("docker", args...)
@@ -72,4 +74,74 @@ func DecodeTgsToGIF(dir string) error {
 	}
 
 	return nil
+}
+
+type dockerMount struct {
+	Source      string `json:"Source"`
+	Destination string `json:"Destination"`
+}
+
+func resolveDockerMountSourcePath(absContainerPath string) string {
+	if os.Getenv("IN_DOCKER") != "true" {
+		return absContainerPath
+	}
+
+	containerRef := strings.TrimSpace(os.Getenv("HOSTNAME"))
+	if containerRef == "" {
+		return absContainerPath
+	}
+
+	cmd := exec.Command("docker", "inspect", containerRef, "--format", "{{json .Mounts}}")
+	output, err := cmd.Output()
+	if err != nil {
+		return absContainerPath
+	}
+
+	var mounts []dockerMount
+	if err := json.Unmarshal(output, &mounts); err != nil {
+		return absContainerPath
+	}
+
+	cleanAbs := filepath.Clean(absContainerPath)
+	bestDest := ""
+	bestSrc := ""
+	for _, m := range mounts {
+		dest := filepath.Clean(m.Destination)
+		if dest == "." || m.Source == "" {
+			continue
+		}
+		if !pathHasPrefix(cleanAbs, dest) {
+			continue
+		}
+		if len(dest) > len(bestDest) {
+			bestDest = dest
+			bestSrc = filepath.Clean(m.Source)
+		}
+	}
+
+	if bestDest == "" || bestSrc == "" {
+		return absContainerPath
+	}
+
+	rel, err := filepath.Rel(bestDest, cleanAbs)
+	if err != nil {
+		return absContainerPath
+	}
+	if rel == "." {
+		return bestSrc
+	}
+
+	return filepath.Clean(filepath.Join(bestSrc, rel))
+}
+
+func pathHasPrefix(path, prefix string) bool {
+	path = filepath.Clean(path)
+	prefix = filepath.Clean(prefix)
+	if path == prefix {
+		return true
+	}
+	if prefix == string(filepath.Separator) {
+		return strings.HasPrefix(path, prefix)
+	}
+	return strings.HasPrefix(path, prefix+string(filepath.Separator))
 }

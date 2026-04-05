@@ -33,6 +33,18 @@ go run main.go
 或者，直接从Release页面下载编译好的二进制文件，解压后运行即可。  
 不要忘记把 `config.yaml` 文件放在同一目录下。
 
+### Docker 容器运行
+也可以直接使用 Docker 运行：
+```bash
+docker compose up -d --build
+```
+
+容器运行时的数据会保存在 `./data/` 目录下，包括 `config.yaml`、`sticker_go.db`、`cache/` 和 `logs/`。第一次启动后，编辑 `./data/config.yaml`，需要的话再重启容器。
+
+如果你在 `config.yaml` 中启用了 TGS 支持（`general.tgs_support: true`），请取消注释 `docker-compose.yml` 里的 Docker socket 挂载，这样容器才能访问宿主机 Docker 守护进程，同时要确保 `edasriyan/lottie-to-gif` 镜像已经在该守护进程中可用。
+
+如果使用 Webhook 模式，请确保 `.env.example` 中的端口映射和 `config.yaml` 里的 webhook 端口一致。
+
 启动后，在Telegram中输入 `/setadmin <config.yaml中设置的管理员密钥>` 来设置管理员权限，不要泄露管理员密钥给其他人。  
 使用命令 `/admin` 来查看管理员功能列表。
 ## 功能

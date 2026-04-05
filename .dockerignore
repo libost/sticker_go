@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+cache
+logs
+data
+*.db
+*.log
+config.yaml
+sticker_go
+main
+README.md
+README_zh.md
+docs
+.vscode
+*.sh

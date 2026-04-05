@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  sticker_go:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sticker_go
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      WEBHOOK_PORT: ${WEBHOOK_PORT:-8080}
+    ports:
+      - "${WEBHOOK_PORT:-8080}:${WEBHOOK_PORT:-8080}"
+    volumes:
+      - ./data:/data
+      # Uncomment the following line if you enable TGS support, please be aware of the security implications of mounting the Docker socket, and ensure that your application properly validates and sanitizes any input that could potentially be used to execute commands on the host system.
+      # - /var/run/docker.sock:/var/run/docker.sock
