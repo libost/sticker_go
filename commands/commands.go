@@ -971,7 +971,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Log("Failed to parse latest release information from GitHub.", C.LogLevelError)
 		return err
 	}
-	latestVersion := release.TagName
+	latestVersion := strings.TrimPrefix(release.TagName, "v")
 
 	if latestVersion == V.Version {
 		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("commands.upgrade_desc_latest", langCode), C.RepoURL, V.Version), &gotgbot.SendMessageOpts{
