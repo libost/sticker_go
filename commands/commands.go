@@ -985,7 +985,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text:         I.GetLocalisedString("commands.upgrade_confirm", langCode),
-					CallbackData: "upgrade_true",
+					CallbackData: fmt.Sprintf("upgrade_true_%s", latestVersion),
 					Style:        "success",
 				},
 				{
