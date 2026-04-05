@@ -3,82 +3,31 @@ name: Auto Release
 on:
   push:
     tags:
-      - "v*" # 只有推送以 v 开头的标签时才会触发（如 v1.0, v2.1.3）
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-    name: Build on - ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: sticker_go_linux
-            asset_name: sticker_go_linux
-          - os: windows-latest
-            artifact_name: sticker_go_windows
-            asset_name: sticker_go_windows.exe # 给 Windows 加上后缀
-          - os: macos-latest
-            artifact_name: sticker_go_macos
-            asset_name: sticker_go_macos
-
+  release:
+    name: Release
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.0'
+          go-version: "1.25.0"
 
-      - name: Prepare version info
-        id: meta
-        shell: bash
-        run: |
-          # 获取当前时间并格式化为字符串
-          echo "build_time=$(date +'%Y-%m-%d_%T')" >> $GITHUB_OUTPUT
-          # 获取短 Commit ID (前 7 位)
-          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          # 获取分支名
-          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-
-      - name: Build
-        shell: bash
-        run: go build -ldflags "-X github.com/libost/sticker_go/version.Version=${{ github.ref_name }} -X github.com/libost/sticker_go/version.BuildTime=${{ steps.meta.outputs.build_time }} -X github.com/libost/sticker_go/version.GitCommit=${{ steps.meta.outputs.short_sha }} -X github.com/libost/sticker_go/version.Branch=main" -o ${{ matrix.asset_name }} main.go
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.asset_name }}
-
-  publish:
-    name: Create Release
-    needs: build  # 等待所有平台的编译任务完成后再执行
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # 必须赋予写入权限才能创建 Release
-    
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./all_binaries
-          merge-multiple: true
-
-      - name: Calculate checksums
-        run: |
-          ls -la
-          test -d ./all_binaries || { echo "all_binaries not found"; exit 1; }
-          ls -la ./all_binaries
-          sha256sum ./all_binaries/* > ./all_binaries/checksums.txt
-          cat ./all_binaries/checksums.txt
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./all_binaries/*  # 上传该文件夹下的所有文件
-          # body: "这是自动生成的发行说明" # 可以自定义更新日志
-          # draft: false
-          # prerelease: false
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
