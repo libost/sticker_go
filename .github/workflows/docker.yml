@@ -2,8 +2,6 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches:
-      - "main"      # 只有推送到 main 分支时触发
     tags:
       - "v*"        # 只有推送版本标签（如 v1.0）时触发
 
