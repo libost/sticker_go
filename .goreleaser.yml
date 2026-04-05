@@ -52,7 +52,6 @@ checksum:
 
 nfpms:
   - id: "sticker_go"
-    name: "sticker_go"
     maintainer: "libost"
     vendor: "libost"
     description: "A Telegram sticker conversion bot written in Go."
