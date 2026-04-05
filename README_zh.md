@@ -43,7 +43,7 @@ docker compose up -d --build
 
 如果你在 `config.yaml` 中启用了 TGS 支持（`general.tgs_support: true`），请取消注释 `docker-compose.yml` 里的 Docker socket 挂载，这样容器才能访问宿主机 Docker 守护进程，同时要确保 `edasriyan/lottie-to-gif` 镜像已经在该守护进程中可用。
 
-如果使用 Webhook 模式，请确保 `docker-compose.yml` 中的端口映射和 `config.yaml` 里的 webhook 端口一致。
+如果使用 Webhook 模式，请确保 `.env.example` 中的端口映射和 `config.yaml` 里的 webhook 端口一致。
 
 启动后，在Telegram中输入 `/setadmin <config.yaml中设置的管理员密钥>` 来设置管理员权限，不要泄露管理员密钥给其他人。  
 使用命令 `/admin` 来查看管理员功能列表。

@@ -24,6 +24,7 @@
         "about": "View version information",
         "about_desc": "Version: <code>%[1]s</code>\nBuild time: <code>%[2]s</code>\nGit commit: <code>%[3]s</code>\nBranch: <code>%[4]s</code>\nProject URL: https://github.com/libost/sticker_go",
         "about_desc_group": "😇 Group environment detected, some features are disabled\n\n",
+        "about_desc_docker": "⚠️ The current environment is Docker, and some features may be limited\n\n",
         "donate": "Donate to us",
         "donate_admin_refuse": "🤖 Admins don't need to donate!",
         "donate_disabled": "🤗 Thank you for your kindness, but we are not accepting donations at the moment!",

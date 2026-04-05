@@ -9,3 +9,4 @@ config.yaml
 *.old
 *.txt
 *.sh
+data/

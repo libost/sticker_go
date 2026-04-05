@@ -24,6 +24,7 @@
         "about": "查看版本資訊",
         "about_desc": "版本: <code>%[1]s</code>\n建構時間: <code>%[2]s</code>\nGit 提交: <code>%[3]s</code>\n分支: <code>%[4]s</code>\n項目地址: https://github.com/libost/sticker_go",
         "about_desc_group": "😇 偵測到群組聊天環境，部分功能已停用\n\n",
+        "about_desc_docker": "⚠️ 目前環境為 Docker，某些功能可能受限\n\n",
         "donate": "向我們捐贈",
         "donate_admin_refuse": "🤖 管理者不需要捐贈哦！",
         "donate_disabled": "🤗 感謝您的好意，但目前我們還不接受捐贈哦！",

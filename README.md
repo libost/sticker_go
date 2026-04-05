@@ -43,7 +43,7 @@ The container stores its runtime data in `./data/`, including `config.yaml`, `st
 
 If you enable TGS support in `config.yaml` (`general.tgs_support: true`), uncomment the Docker socket mount in `docker-compose.yml` so the container can access the host Docker daemon, and make sure the `edasriyan/lottie-to-gif` image is available on that daemon.
 
-If you use webhook mode, make sure the port mapping in `docker-compose.yml` matches the webhook port in `config.yaml`.
+If you use webhook mode, make sure the port mapping in `.env.example` matches the webhook port in `config.yaml`.
 
 After starting, input `/setadmin <admin key set in config.yaml>` in Telegram to set admin privileges, and do not leak the admin key to others.  
 Use the command `/admin` to view the list of admin features.

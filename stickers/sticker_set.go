@@ -209,6 +209,20 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 				return nil, fmt.Errorf("failed to convert TGS to GIF: %v", err)
 			}
 		} else {
+			for _, fileID := range tgsFileIDs {
+				gifPath := tempDir + "/" + fileID + ".tgs" + ".gif"
+				tgsPath := tempDir + "/" + fileID + ".tgs"
+				if _, statErr := os.Stat(gifPath); os.IsNotExist(statErr) {
+					for i := range filePaths {
+						if filePaths[i] == gifPath {
+							filePaths[i] = tgsPath
+						}
+					}
+					log.Log(fmt.Sprintf("Converted GIF not found for %s, fallback to original TGS", fileID), C.LogLevelWarn)
+				} else if statErr != nil {
+					return nil, fmt.Errorf("failed to stat converted gif %s: %v", gifPath, statErr)
+				}
+			}
 			tgsFiles, globErr := filepath.Glob(filepath.Join(tempDir, "*.tgs"))
 			if globErr == nil {
 				for _, tgsFile := range tgsFiles {

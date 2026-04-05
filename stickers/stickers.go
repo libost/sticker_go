@@ -304,6 +304,12 @@ func convertStickerFile(sticker *gotgbot.Sticker, rawPath string, tempDir string
 		}
 
 		filePath = tempDir + sticker.FileId + ".tgs" + ".gif"
+		if _, statErr := os.Stat(filePath); os.IsNotExist(statErr) {
+			log.Log(fmt.Sprintf("Converted GIF not found after TGS conversion for %s, fallback to original TGS: %s", sticker.FileId, rawPath), C.LogLevelWarn)
+			return rawPath, nil
+		} else if statErr != nil {
+			return "", statErr
+		}
 		_ = os.Remove(tempDir + sticker.FileId + ".json")
 		log.Log(fmt.Sprintf("Animated sticker converted to GIF: %s", filePath), C.LogLevelInfo)
 	}
