@@ -177,6 +177,7 @@ Administrators can use the `/admin` command to view the list of administrator fe
 - `/getstats`：View Bot usage statistics.
 - `/reset`：Reset the current user's usage statistics.
 - `/upgrade`：Check and apply Bot updates (starting from version v1.8.1).
+> Warning: The upgrade feature has compatibility issues between versions 1.8.x and 1.9.x. If you are currently using version 1.8.x, it is recommended to manually upgrade to version 1.9.0 or higher for a better upgrade experience and to avoid potential issues during the upgrade process.
 - `/restart`：Restart the Bot.
 - `/shutdown`：Shutdown the Bot.  
 
