@@ -45,3 +45,4 @@ jobs:
             VERSION=${{ steps.vars.outputs.VERSION }}
             GIT_COMMIT=${{ steps.vars.outputs.GIT_COMMIT }}
             BUILD_TIME=${{ steps.vars.outputs.BUILD_TIME }}
+            BRANCH=main
