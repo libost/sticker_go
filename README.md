@@ -33,6 +33,18 @@ go run main.go
 or, download the pre-compiled binary from the Release page, extract it, and run it.  
 Don't forget to place the `config.yaml` file in the same directory.
 
+### Docker Container
+You can also run the bot inside Docker:
+```bash
+docker compose up -d --build
+```
+
+The container stores its runtime data in `./data/`, including `config.yaml`, `sticker_go.db`, `cache/`, and `logs/`. After the first start, edit `./data/config.yaml` and restart the container if needed.
+
+If you enable TGS support in `config.yaml` (`general.tgs_support: true`), uncomment the Docker socket mount in `docker-compose.yml` so the container can access the host Docker daemon, and make sure the `edasriyan/lottie-to-gif` image is available on that daemon.
+
+If you use webhook mode, make sure the port mapping in `.env.example` matches the webhook port in `config.yaml`.
+
 After starting, input `/setadmin <admin key set in config.yaml>` in Telegram to set admin privileges, and do not leak the admin key to others.  
 Use the command `/admin` to view the list of admin features.
 ## Features

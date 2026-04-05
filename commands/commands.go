@@ -502,6 +502,9 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	displayText := fmt.Sprintf(I.GetLocalisedString("commands.about_desc", langCode), V.Version, V.BuildTime, V.GitCommit, V.Branch)
+	if os.Getenv("IN_DOCKER") == "true" {
+		displayText = I.GetLocalisedString("commands.about_desc_docker", langCode) + displayText
+	}
 	if ctx.EffectiveChat.Type != "private" {
 		displayText = I.GetLocalisedString("commands.about_desc_group", langCode) + displayText
 	}
@@ -929,6 +932,10 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if V.Version == "dev" {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_dev", langCode), nil)
+		return err
+	}
+	if os.Getenv("IN_DOCKER") == "true" {
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_docker", langCode), nil)
 		return err
 	}
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", C.Owner, C.Repo)
