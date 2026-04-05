@@ -13,10 +13,9 @@ builds:
       - linux
     goarch:
       - amd64
-      - arm64
     main: ./main.go
     ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch=main"
-    binary: sticker_go_linux_{{.Arch}}
+    binary: sticker_go_linux
 
   - id: windows
     env:
@@ -25,10 +24,9 @@ builds:
       - windows
     goarch:
       - amd64
-      - arm64
     main: ./main.go
     ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch=main"
-    binary: sticker_go_windows_{{.Arch}}
+    binary: sticker_go_windows
 
   - id: macos
     env:
@@ -37,10 +35,9 @@ builds:
       - darwin
     goarch:
       - amd64
-      - arm64
     main: ./main.go
     ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch=main"
-    binary: sticker_go_macos_{{.Arch}}
+    binary: sticker_go_macos
 
 archives:
   - id: binaries
