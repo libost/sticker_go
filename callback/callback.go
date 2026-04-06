@@ -54,6 +54,10 @@ func allPreCheckouts(pq *gotgbot.PreCheckoutQuery) bool {
 func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	pq := ctx.PreCheckoutQuery
 	cf, err := config.Init()
+	if err != nil {
+		log.Log(fmt.Sprintf("User %d failed to load config during pre-checkout: %v", pq.From.Id, err), C.LogLevelError)
+		return err
+	}
 	if !cf.Donation.Enabled {
 		langCode := I.LangCodePrefer(pq.From.Id, pq.From.LanguageCode)
 		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
@@ -184,13 +188,13 @@ func removeZipFiles(zipPaths []string) {
 
 func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string, msgId int64) error {
 	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, msgId, ctx)
+	cf, cfErr := config.Init()
+	if cfErr != nil {
+		log.Log(fmt.Sprintf("User %d failed to load config in GetPack: %v", ctx.EffectiveUser.Id, cfErr), C.LogLevelError)
+		return cfErr
+	}
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {
-		cf, err := config.Init()
-		if err != nil {
-			log.Log(fmt.Sprintf("User %d failed to load config after sticker pack limit error: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-			return err
-		}
 		msg := fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany", langCode), limitErr.PackLength, limitErr.Limit)
 		if limitErr.Limit == int(float64(cf.General.LimitPerPack)*C.DonationBonusMultiplier) {
 			msg += fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany_bonus", langCode), C.DonationBonusMultiplier)
@@ -240,7 +244,6 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 			},
 		)
 	}
-
 	for _, zipPath := range zipPaths {
 		err = sendZipDocumentWithRetry(b, ctx.EffectiveUser.Id, zipPath)
 		if err != nil {
@@ -255,11 +258,6 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		}
 	}
 	stopActionLoop()
-	cf, err := config.Init()
-	if err != nil {
-		log.Log(fmt.Sprintf("User %d failed to load config after downloading sticker pack: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		return err
-	}
 	usergroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to retrieve user group after downloading sticker pack: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)

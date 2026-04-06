@@ -7,7 +7,6 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -51,30 +50,9 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	if cf.Subscription.Enabled {
-		err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
-		if err != nil {
-			channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
-			if errors.Is(err, utils.ErrUserNotSubscribed) {
-
-				displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, cf.Subscription.Channel)
-				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
-					ParseMode: "HTML",
-				})
-				if replyErr != nil {
-					return replyErr
-				}
-				return nil
-			}
-			displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, cf.Subscription.Channel)
-			_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
-				ParseMode: "HTML",
-			})
-			if replyErr != nil {
-				return replyErr
-			}
-			return err
-		}
+	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
+	if subErr != nil {
+		return nil // 用户未订阅，已在 SubscribeCheck 中发送提示消息，直接返回不继续处理
 	}
 	limit := cf.General.Limit
 	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)

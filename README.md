@@ -8,7 +8,7 @@
 [中文](./README_zh.md) | [English](./README.md)  
 
 A Telegram sticker extraction and conversion Bot developed in Go, supporting both single stickers and sticker packs, with the ability to convert TGS format stickers to GIF format.  
-Template: https://t.me/downloaderstickerbot
+Example Bot: https://t.me/downloaderstickerbot
 ## Prerequisites
 - Go 1.25 or higher (not required for binary releases)
 - Docker (only required if TGS support is enabled)

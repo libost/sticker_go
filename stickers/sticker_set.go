@@ -103,7 +103,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		progressNow++
 		if progressNow == 1 || progressNow%5 == 0 || progressNow == packLength {
 			langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-			_, _, err = b.EditMessageText(fmt.Sprintf(I.GetLocalisedString("stickers.pack_progress", langCode), stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
+			_, _, _ = b.EditMessageText(fmt.Sprintf(I.GetLocalisedString("stickers.pack_progress", langCode), stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
 				ChatId:    uid,
 				MessageId: messageId,
 			})

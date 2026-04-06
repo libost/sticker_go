@@ -48,6 +48,9 @@ func DecodeWebMToGIF(inputPath string) (filePath string, err error) {
 	return outputPath, nil
 }
 
+// DecodeTgsToGIF 的转换逻辑与其他函数不同，使用的Docker容器会将整个目录中的所有.tgs文件转换为.gif文件。
+// 因此，DecodeTgsToGIF函数的输入参数是一个目录路径，而不是单个文件路径。
+// 也因此，返回值不包括文件路径。
 func DecodeTgsToGIF(dir string) error {
 	absPath, err := filepath.Abs(dir)
 	if err != nil {
@@ -81,6 +84,7 @@ type dockerMount struct {
 	Destination string `json:"Destination"`
 }
 
+// 为Docker容器版本引入，解决在Docker环境中路径映射导致的文件访问问题，确保在容器内运行时能够正确访问宿主机上的文件路径。
 func resolveDockerMountSourcePath(absContainerPath string) string {
 	if os.Getenv("IN_DOCKER") != "true" {
 		return absContainerPath

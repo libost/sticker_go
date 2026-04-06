@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -131,33 +130,9 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()
 	if len(args) > 1 {
 		// 处理 start 参数，例如 deep linking
-		cfg, err := config.Init()
-		if err != nil {
-			return err
-		}
-		if cfg.Subscription.Enabled {
-			err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
-			if err != nil {
-				channel := strings.TrimPrefix(cfg.Subscription.Channel, "@")
-				if errors.Is(err, utils.ErrUserNotSubscribed) {
-					displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, cfg.Subscription.Channel)
-					_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
-						ParseMode: "HTML",
-					})
-					if replyErr != nil {
-						return replyErr
-					}
-					return nil
-				}
-				displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, cfg.Subscription.Channel)
-				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
-					ParseMode: "HTML",
-				})
-				if replyErr != nil {
-					return replyErr
-				}
-				return nil
-			}
+		subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
+		if subErr != nil {
+			return nil
 		}
 		param := args[1]
 		log.Log(fmt.Sprintf("User %d triggered /start with parameter: %s", ctx.EffectiveUser.Id, param), C.LogLevelInfo)
@@ -178,6 +153,9 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.start_desc_private", langCode), nil)
+	if err != nil {
+		return err
+	}
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -207,6 +185,9 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 		displayText = I.GetLocalisedString("commands.help_desc_group", langCode)
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	if err != nil {
+		return err
+	}
 	db, err := database.Init("init", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -281,7 +262,7 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /getstats 命令，忽略群聊和频道中的命令
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	isAdmin, err := checkAdmin(b, ctx, "getstats")
+	isAdmin, _ := checkAdmin(b, ctx, "getstats")
 	if isAdmin != true {
 		return nil
 	}
@@ -376,13 +357,13 @@ func resetUsage(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /reset 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "reset")
+	isAdmin, _ := checkAdmin(b, ctx, "reset")
 	if isAdmin != true {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
-	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.reset_success", langCode), nil)
+	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.reset_success", langCode), nil)
 	log.Log(fmt.Sprintf("User %d triggered /reset", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
@@ -391,11 +372,11 @@ func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /clearcache 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "clearcache")
+	isAdmin, _ := checkAdmin(b, ctx, "clearcache")
 	if isAdmin != true {
 		return nil
 	}
-	err = os.RemoveAll(C.CacheDir)
+	err := os.RemoveAll(C.CacheDir)
 	if err != nil {
 		return err
 	}
@@ -414,11 +395,10 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /setcommands 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "setcommands")
+	isAdmin, _ := checkAdmin(b, ctx, "setcommands")
 	if isAdmin != true {
 		return nil
 	}
-	// TODO: language-specific commands
 	supportedLanguages, _, err := I.GetAllSupportedLanguages()
 	if err != nil {
 		return err
@@ -436,7 +416,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Log(fmt.Sprintf("Skipping private commands for language %s due to invalid Telegram language code (code=%s, code_alt=%s)", name, code, codeAlt), C.LogLevelWarn)
 			continue
 		}
-		commands := []gotgbot.BotCommand{
+		privateCommands := []gotgbot.BotCommand{
 			{Command: "start", Description: I.GetLocalisedString("commands.setcommands_desc_list[0]", code)},
 			{Command: "help", Description: I.GetLocalisedString("commands.setcommands_desc_list[1]", code)},
 			{Command: "usage", Description: I.GetLocalisedString("commands.setcommands_desc_list[2]", code)},
@@ -444,36 +424,24 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 			{Command: "about", Description: I.GetLocalisedString("commands.setcommands_desc_list[3]", code)},
 		}
 		cf, err := config.Init()
+		if err != nil {
+			return err
+		}
 		if cf.Donation.Enabled {
-			commands = append(commands, gotgbot.BotCommand{Command: "donate", Description: I.GetLocalisedString("commands.setcommands_desc_list[4]", code)})
+			privateCommands = append(privateCommands, gotgbot.BotCommand{Command: "donate", Description: I.GetLocalisedString("commands.setcommands_desc_list[4]", code)})
 		}
 		if languageCode == "en" {
 			languageCode = "" // Default language commands should be set with empty language code in Telegram
 		}
-		opts := gotgbot.SetMyCommandsOpts{
+		privateOpts := gotgbot.SetMyCommandsOpts{
 			Scope:        gotgbot.BotCommandScopeAllPrivateChats{},
 			LanguageCode: languageCode,
 		}
-		_, err = b.SetMyCommands(commands, &opts)
+		_, err = b.SetMyCommands(privateCommands, &privateOpts)
 		if err != nil {
 			return err
 		}
-	}
-
-	for idx, lang := range supportedLanguages {
-		keyIndex := idx + 1
-		name := lang[fmt.Sprintf("name_%d", keyIndex)]
-		code := lang[fmt.Sprintf("code_%d", keyIndex)]
-		code_alt := lang[fmt.Sprintf("code_alt_%d", keyIndex)]
-		if name == "" || code == "" {
-			continue
-		}
-		languageCode, ok := normalizeTelegramLanguageCode(code, code_alt)
-		if !ok {
-			log.Log(fmt.Sprintf("Skipping group commands for language %s due to invalid Telegram language code (code=%s, code_alt=%s)", name, code, code_alt), C.LogLevelWarn)
-			continue
-		}
-		commands := []gotgbot.BotCommand{
+		groupCommands := []gotgbot.BotCommand{
 			{Command: "start", Description: I.GetLocalisedString("commands.setcommands_desc_list[5]", code)},
 			{Command: "get", Description: I.GetLocalisedString("commands.setcommands_desc_list[6]", code)},
 			{Command: "help", Description: I.GetLocalisedString("commands.setcommands_desc_list[7]", code)},
@@ -481,14 +449,11 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 			{Command: "lang", Description: I.GetLocalisedString("commands.setcommands_desc_list[9]", code)},
 			{Command: "about", Description: I.GetLocalisedString("commands.setcommands_desc_list[8]", code)},
 		}
-		if languageCode == "en" {
-			languageCode = "" // Default language commands should be set with empty language code in Telegram
-		}
-		opts := gotgbot.SetMyCommandsOpts{
+		groupOpts := gotgbot.SetMyCommandsOpts{
 			Scope:        gotgbot.BotCommandScopeAllGroupChats{},
 			LanguageCode: languageCode,
 		}
-		_, err = b.SetMyCommands(commands, &opts)
+		_, err = b.SetMyCommands(groupCommands, &groupOpts)
 		if err != nil {
 			return err
 		}
@@ -522,7 +487,7 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /clearlogs 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "clearlogs")
+	isAdmin, _ := checkAdmin(b, ctx, "clearlogs")
 	if isAdmin != true {
 		return nil
 	}
@@ -535,7 +500,7 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		},
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.clearlogs_desc", langCode), &gotgbot.SendMessageOpts{
+	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.clearlogs_desc", langCode), &gotgbot.SendMessageOpts{
 		ReplyMarkup: inlineKeyboard,
 	})
 	log.Log(fmt.Sprintf("User %d triggered /clearlogs", ctx.EffectiveUser.Id), C.LogLevelInfo)
@@ -546,12 +511,12 @@ func restart(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /restart 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "restart")
+	isAdmin, _ := checkAdmin(b, ctx, "restart")
 	if isAdmin != true {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.restart_desc", langCode), nil)
+	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.restart_desc", langCode), nil)
 	log.Log(fmt.Sprintf("User %d triggered /restart", ctx.EffectiveUser.Id), C.LogLevelWarn)
 	if err != nil {
 		return err
@@ -587,7 +552,7 @@ func restart(b *gotgbot.Bot, ctx *ext.Context) error {
 			pathExe, _ := os.Executable()
 			args := os.Args
 			env := os.Environ()
-			err = syscall.Exec(pathExe, args, env)
+			_ = syscall.Exec(pathExe, args, env)
 		}
 	}
 	return nil
@@ -597,7 +562,7 @@ func shutdown(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /shutdown 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "shutdown")
+	isAdmin, _ := checkAdmin(b, ctx, "shutdown")
 	if isAdmin != true {
 		return nil
 	}
@@ -617,7 +582,7 @@ func shutdown(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		},
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
+	_, err := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 		ReplyMarkup: inlineKeyboard,
 	})
 	log.Log(fmt.Sprintf("User %d triggered /shutdown", ctx.EffectiveUser.Id), C.LogLevelWarn)
@@ -631,13 +596,13 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /admin 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "admin")
+	isAdmin, _ := checkAdmin(b, ctx, "admin")
 	if isAdmin != true {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	displayText := I.GetLocalisedString("commands.admin_commands_list", langCode)
-	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
 	log.Log(fmt.Sprintf("User %d triggered /admin", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }
@@ -672,28 +637,9 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("general.out_of_quota", langCode), limit), nil)
 		return err
 	}
-	if cf.Subscription.Enabled {
-		err := utils.SubscribeCheck(b, ctx.EffectiveUser.Id)
-		if err != nil {
-			channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
-			if errors.Is(err, utils.ErrUserNotSubscribed) {
-				displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, cf.Subscription.Channel)
-				_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
-					ParseMode: "HTML",
-				})
-				if replyErr != nil {
-					return replyErr
-				}
-				return nil
-			}
-			displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, cf.Subscription.Channel)
-			_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
-				ParseMode: "HTML",
-			})
-			if replyErr != nil {
-				return replyErr
-			}
-		}
+	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
+	if subErr != nil {
+		return nil
 	}
 	msg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("general.sending_sticker", langCode), nil)
 	if err != nil {
@@ -799,7 +745,7 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用这个命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "getalldonates")
+	isAdmin, _ := checkAdmin(b, ctx, "getalldonates")
 	if isAdmin != true {
 		return nil
 	}
@@ -845,17 +791,11 @@ func refund(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /refund 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "refund")
-	if err != nil {
-		return err
-	}
+	isAdmin, _ := checkAdmin(b, ctx, "refund")
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if isAdmin {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.refund_admin_refuse", langCode), nil)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	}
 	data, err := database.Init("getUserDonations", ctx.EffectiveUser.Id, nil)
 	if err != nil {
@@ -925,7 +865,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅允许在私聊中使用 /upgrade 命令，忽略群聊和频道中的命令
 	}
-	isAdmin, err := checkAdmin(b, ctx, "upgrade")
+	isAdmin, _ := checkAdmin(b, ctx, "upgrade")
 	if isAdmin != true {
 		return nil
 	}

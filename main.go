@@ -81,31 +81,7 @@ func main() {
 		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelFatal)
 		return
 	}
-	httpClient := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	if cfg.Proxy.Enabled {
-		switch cfg.Proxy.Type {
-		case "socks5":
-			dialer, _ := proxy.SOCKS5("tcp", fmt.Sprintf("%s:%d", cfg.Proxy.Host, cfg.Proxy.Port), nil, proxy.Direct)
-			httpClient = &http.Client{
-				Transport: &http.Transport{
-					Dial: dialer.Dial,
-				},
-			}
-			L.Log(fmt.Sprintf("using SOCKS5 proxy at %s:%d", cfg.Proxy.Host, cfg.Proxy.Port), C.LogLevelInfo)
-		case "http":
-			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%d", cfg.Proxy.Host, cfg.Proxy.Port))
-			httpClient = &http.Client{
-				Transport: &http.Transport{
-					Proxy: http.ProxyURL(proxyUrl),
-				},
-			}
-			L.Log(fmt.Sprintf("using HTTP proxy at %s:%d", cfg.Proxy.Host, cfg.Proxy.Port), C.LogLevelInfo)
-		default:
-			L.Log(fmt.Sprintf("unsupported proxy type: %s", cfg.Proxy.Type), C.LogLevelFatal)
-		}
-	}
+	httpClient := httpClientWithProxy(cfg)
 	b, err := gotgbot.NewBot(token, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
 			Client: *httpClient,
@@ -143,20 +119,10 @@ func main() {
 		os.RemoveAll(C.CacheDir)
 		os.Mkdir(C.CacheDir, 0755) // 确保缓存目录存在但为空
 	}
-	cmd := exec.Command("ffmpeg", "-version")
-	err = cmd.Run() // 检查 ffmpeg 是否可用
-	if err != nil {
-		L.Log(fmt.Sprintf("ffmpeg is not installed or not in PATH: %v", err), C.LogLevelFatal)
-	}
-	if cfg.General.TgsSupport {
-		cmd = exec.Command("docker", "images", "-q", "edasriyan/lottie-to-gif")
-		output, err := cmd.Output() // 检查 Docker 镜像是否可用
-		if err != nil {
-			L.Log(fmt.Sprintf("Docker is not installed or 'edasriyan/lottie-to-gif' image is not available: %v", err), C.LogLevelFatal)
-		}
-		if len(strings.TrimSpace(string(output))) == 0 {
-			L.Log("Docker image 'edasriyan/lottie-to-gif' is not available", C.LogLevelFatal)
-		}
+	preCheckPassed := preqrequisitesCheck(cfg)
+	if !preCheckPassed {
+		L.Log("prerequisites check failed, please fix the issues and restart the bot", C.LogLevelFatal)
+		return
 	}
 	logDir := C.LogDir
 	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
@@ -176,47 +142,7 @@ func main() {
 			cleanFiles(logDir, cfg, "log")
 		}
 	}()
-	last_clean_time, err := database.Init("getLastCleanupTime", 0, nil) // 获取上次清理每周数据的时间
-	if err != nil {
-		L.Log(fmt.Sprintf("failed to get last clean time from database: %v", err), C.LogLevelFatal)
-	}
-	lastCleanupAt := int64(0)
-	if v, ok := last_clean_time["last_cleanup_at"]; ok {
-		switch ts := v.(type) {
-		case float64:
-			lastCleanupAt = int64(ts)
-		case int64:
-			lastCleanupAt = ts
-		case int:
-			lastCleanupAt = int64(ts)
-		default:
-			L.Log(fmt.Sprintf("invalid last_cleanup_at type: %T, fallback to 0", v), C.LogLevelWarn)
-		}
-	} else {
-		L.Log("last_cleanup_at is missing, fallback to 0", C.LogLevelWarn)
-	}
-	if lastCleanupAt+int64(7*24*time.Hour.Seconds()) < time.Now().Unix() { // 如果上次清理时间超过7天，立即清理一次每周数据
-		_, err := database.Init("clearWeeklyStats", 0, nil)
-		if err != nil {
-			L.Log(fmt.Sprintf("failed to clear weekly stats: %v", err), C.LogLevelFatal)
-		}
-		L.Log("weekly stats have been cleared on startup", C.LogLevelInfo)
-	}
-	c := cron.New()
-	// 每周一凌晨 0 点清理一次数据库中的每周统计数据
-	_, err = c.AddFunc("0 0 * * 1", func() {
-		_, err := database.Init("clearWeeklyStats", 0, nil)
-		if err != nil {
-			L.Log(fmt.Sprintf("failed to clear weekly stats: %v", err), C.LogLevelFatal)
-		} else {
-			L.Log("weekly stats have been cleared by scheduled task", C.LogLevelInfo)
-		}
-	})
-	if err != nil {
-		L.Log(fmt.Sprintf("failed to schedule weekly stats clearing: %v", err), C.LogLevelFatal)
-	} else {
-		c.Start()
-	}
+	statsCleanup() // 启动统计数据清理任务
 	// 创建分发器 (Dispatcher)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
 		Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
@@ -235,82 +161,8 @@ func main() {
 	callback.AddHandlers(dispatcher)
 
 	// 启动 Bot
-	var communicationMethod string
-	if cfg.Webhook.Enabled {
-		webhookURL, err := url.Parse(cfg.Webhook.URL)
-		if err != nil || webhookURL.Scheme == "" || webhookURL.Host == "" {
-			L.Log(fmt.Sprintf("invalid webhook url: %q", cfg.Webhook.URL), C.LogLevelFatal)
-		}
-		if webhookURL.Path == "" || webhookURL.Path == "/" {
-			L.Log("webhook url path is empty, please set a path like /webhook", C.LogLevelFatal)
-		}
-
-		// 启动 Webhook 服务器
-		listenaddr := fmt.Sprintf("0.0.0.0:%d", cfg.Webhook.Port)
-		webhookOpts := ext.WebhookOpts{
-			ListenAddr:  listenaddr,         // 本地监听端口
-			SecretToken: cfg.Webhook.Secret, // Webhook 密钥
-		}
-		setwebhookopts := &gotgbot.SetWebhookOpts{
-			SecretToken:        webhookOpts.SecretToken,
-			DropPendingUpdates: true,
-		}
-		if cfg.Webhook.NginxEnabled {
-			// 如果启用了 Nginx 反向代理，监听本地回环地址
-			listenaddr = fmt.Sprintf("127.0.0.1:%d", cfg.Webhook.Port)
-		} else {
-			if !isTelegramAcceptedWebhookPort(cfg.Webhook.Port) {
-				L.Log(fmt.Sprintf("Webhook port %d is not accepted by Telegram API, please consider using a standard port or nginx reverse proxy, this bot will quit.", cfg.Webhook.Port), C.LogLevelFatal)
-			}
-			if cfg.Webhook.Cert.CertPath == "" || cfg.Webhook.Cert.KeyPath == "" {
-				L.Log("SSL cert or key path is not set, webhook will be started without TLS which is not secure and may not work with Telegram API, please consider setting cert_path and key_path in config.yaml or using nginx reverse proxy, this bot will quit.", C.LogLevelFatal)
-			} else {
-				webhookOpts.CertFile = cfg.Webhook.Cert.CertPath
-				webhookOpts.KeyFile = cfg.Webhook.Cert.KeyPath
-				if cfg.Webhook.Cert.SelfSigned {
-					certFile, err := os.Open(cfg.Webhook.Cert.CertPath)
-					if err != nil {
-						L.Log(fmt.Sprintf("failed to open SSL certificate file: %v", err), C.LogLevelFatal)
-					}
-					defer certFile.Close()
-					setwebhookopts.Certificate = gotgbot.InputFileByReader(filepath.Base(cfg.Webhook.Cert.CertPath), certFile)
-					L.Log("self-signed certificate is enabled, certificate will be uploaded to Telegram when setting webhook", C.LogLevelInfo)
-				}
-			}
-		}
-		webhookOpts.ListenAddr = listenaddr
-		err = updater.StartWebhook(b, webhookURL.Path, webhookOpts)
-		if err != nil {
-			L.Log(fmt.Sprintf("failed to start webhook: %v", err), C.LogLevelFatal)
-		}
-
-		// 设置 Telegram 的 Webhook URL
-		_, err = b.SetWebhook(cfg.Webhook.URL, setwebhookopts)
-		if err != nil {
-			L.Log(fmt.Sprintf("failed to set webhook: %v", err), C.LogLevelFatal)
-		}
-		communicationMethod = "Webhook"
-	} else {
-		_, err := b.DeleteWebhook(&gotgbot.DeleteWebhookOpts{
-			DropPendingUpdates: true, // 启动时忽略之前的积压消息
-		}) // 使用轮询时删除任何现有的 Webhook
-		err = updater.StartPolling(b, &ext.PollingOpts{
-			DropPendingUpdates: true, // 启动时忽略之前的积压消息
-			GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
-				Timeout: 9,
-				RequestOpts: &gotgbot.RequestOpts{
-					Timeout: time.Second * 10,
-				},
-			},
-		})
-		if err != nil {
-			L.Log(fmt.Sprintf("failed to start polling: %v", err), C.LogLevelFatal)
-		}
-		communicationMethod = "Polling"
-	}
-	logText := fmt.Sprintf("%s has started with %s enabled. Log Level: %s", b.User.Username, communicationMethod, cfg.Log.Level)
-	L.Log(logText, C.LogLevelInfo)
-
+	communicateCheck(cfg, updater, b)
+	c := cron.New()
 	go func() {
 		sig := <-sigs
 		L.Log(fmt.Sprintf("received signal: %v, starting graceful shutdown...", sig), C.LogLevelInfo)
@@ -384,9 +236,198 @@ func cleanFiles(dir string, cfg *config.Config, dirType string) {
 }
 
 func isTelegramAcceptedWebhookPort(port int) bool {
-	if slices.Contains(C.AcceptedPorts, port) {
-		return true
-	} else {
+	return slices.Contains(C.AcceptedPorts, port)
+}
+
+func httpClientWithProxy(cfg *config.Config) *http.Client {
+	httpClient := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	if cfg.Proxy.Enabled {
+		switch cfg.Proxy.Type {
+		case "socks5":
+			dialer, _ := proxy.SOCKS5("tcp", fmt.Sprintf("%s:%d", cfg.Proxy.Host, cfg.Proxy.Port), nil, proxy.Direct)
+			httpClient = &http.Client{
+				Transport: &http.Transport{
+					Dial: dialer.Dial,
+				},
+			}
+			L.Log(fmt.Sprintf("using SOCKS5 proxy at %s:%d", cfg.Proxy.Host, cfg.Proxy.Port), C.LogLevelInfo)
+		case "http":
+			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%d", cfg.Proxy.Host, cfg.Proxy.Port))
+			httpClient = &http.Client{
+				Transport: &http.Transport{
+					Proxy: http.ProxyURL(proxyUrl),
+				},
+			}
+			L.Log(fmt.Sprintf("using HTTP proxy at %s:%d", cfg.Proxy.Host, cfg.Proxy.Port), C.LogLevelInfo)
+		default:
+			L.Log(fmt.Sprintf("unsupported proxy type: %s", cfg.Proxy.Type), C.LogLevelFatal)
+		}
+	}
+	return httpClient
+}
+
+func preqrequisitesCheck(cfg *config.Config) bool {
+	cmd := exec.Command("ffmpeg", "-version")
+	err := cmd.Run()
+	if err != nil {
+		L.Log(fmt.Sprintf("ffmpeg is not installed or not in PATH: %v", err), C.LogLevelError)
 		return false
+	}
+	if cfg.General.TgsSupport {
+		cmd = exec.Command("docker", "images", "-q", "edasriyan/lottie-to-gif")
+		output, err := cmd.Output()
+		if err != nil {
+			L.Log(fmt.Sprintf("Docker is not installed or 'edasriyan/lottie-to-gif' image is not available: %v", err), C.LogLevelError)
+			return false
+		}
+		if len(strings.TrimSpace(string(output))) == 0 {
+			L.Log("Docker image 'edasriyan/lottie-to-gif' is not available", C.LogLevelError)
+			return false
+		}
+	}
+	return true
+}
+
+func communicateCheck(cfg *config.Config, updater *ext.Updater, b *gotgbot.Bot) {
+	communicationMethod := "Polling"
+	if cfg.Webhook.Enabled {
+		startWebhookCommunication(cfg, updater, b)
+		communicationMethod = "Webhook"
+	} else {
+		startPollingCommunication(updater, b)
+	}
+	logText := fmt.Sprintf("%s has started with %s enabled. Log Level: %s", b.User.Username, communicationMethod, cfg.Log.Level)
+	L.Log(logText, C.LogLevelInfo)
+}
+
+func startWebhookCommunication(cfg *config.Config, updater *ext.Updater, b *gotgbot.Bot) {
+	webhookURL := mustParseWebhookURL(cfg.Webhook.URL)
+	webhookOpts, setWebhookOpts := buildWebhookOptions(cfg)
+
+	if err := updater.StartWebhook(b, webhookURL.Path, webhookOpts); err != nil {
+		L.Log(fmt.Sprintf("failed to start webhook: %v", err), C.LogLevelFatal)
+	}
+
+	if _, err := b.SetWebhook(cfg.Webhook.URL, setWebhookOpts); err != nil {
+		L.Log(fmt.Sprintf("failed to set webhook: %v", err), C.LogLevelFatal)
+	}
+}
+
+func mustParseWebhookURL(rawURL string) *url.URL {
+	webhookURL, err := url.Parse(rawURL)
+	if err != nil || webhookURL.Scheme == "" || webhookURL.Host == "" {
+		L.Log(fmt.Sprintf("invalid webhook url: %q", rawURL), C.LogLevelFatal)
+	}
+	if webhookURL.Path == "" || webhookURL.Path == "/" {
+		L.Log("webhook url path is empty, please set a path like /webhook", C.LogLevelFatal)
+	}
+	return webhookURL
+}
+
+func buildWebhookOptions(cfg *config.Config) (ext.WebhookOpts, *gotgbot.SetWebhookOpts) {
+	listenAddr := fmt.Sprintf("0.0.0.0:%d", cfg.Webhook.Port)
+	webhookOpts := ext.WebhookOpts{
+		ListenAddr:  listenAddr,
+		SecretToken: cfg.Webhook.Secret,
+	}
+	setWebhookOpts := &gotgbot.SetWebhookOpts{
+		SecretToken:        webhookOpts.SecretToken,
+		DropPendingUpdates: true,
+	}
+
+	if cfg.Webhook.NginxEnabled {
+		webhookOpts.ListenAddr = fmt.Sprintf("127.0.0.1:%d", cfg.Webhook.Port)
+		return webhookOpts, setWebhookOpts
+	}
+
+	applyWebhookTLSConfig(cfg, &webhookOpts, setWebhookOpts)
+	return webhookOpts, setWebhookOpts
+}
+
+func applyWebhookTLSConfig(cfg *config.Config, webhookOpts *ext.WebhookOpts, setWebhookOpts *gotgbot.SetWebhookOpts) {
+	if !isTelegramAcceptedWebhookPort(cfg.Webhook.Port) {
+		L.Log(fmt.Sprintf("Webhook port %d is not accepted by Telegram API, please consider using a standard port or nginx reverse proxy, this bot will quit.", cfg.Webhook.Port), C.LogLevelFatal)
+	}
+	if cfg.Webhook.Cert.CertPath == "" || cfg.Webhook.Cert.KeyPath == "" {
+		L.Log("SSL cert or key path is not set, webhook will be started without TLS which is not secure and may not work with Telegram API, please consider setting cert_path and key_path in config.yaml or using nginx reverse proxy, this bot will quit.", C.LogLevelFatal)
+	}
+
+	webhookOpts.CertFile = cfg.Webhook.Cert.CertPath
+	webhookOpts.KeyFile = cfg.Webhook.Cert.KeyPath
+	if cfg.Webhook.Cert.SelfSigned {
+		certFile, err := os.Open(cfg.Webhook.Cert.CertPath)
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to open SSL certificate file: %v", err), C.LogLevelFatal)
+		}
+		defer certFile.Close()
+		setWebhookOpts.Certificate = gotgbot.InputFileByReader(filepath.Base(cfg.Webhook.Cert.CertPath), certFile)
+		L.Log("self-signed certificate is enabled, certificate will be uploaded to Telegram when setting webhook", C.LogLevelInfo)
+	}
+}
+
+func startPollingCommunication(updater *ext.Updater, b *gotgbot.Bot) {
+	if _, err := b.DeleteWebhook(&gotgbot.DeleteWebhookOpts{
+		DropPendingUpdates: true,
+	}); err != nil {
+		L.Log(fmt.Sprintf("failed to delete existing webhook: %v", err), C.LogLevelWarn)
+	}
+
+	err := updater.StartPolling(b, &ext.PollingOpts{
+		DropPendingUpdates: true,
+		GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
+			Timeout: 9,
+			RequestOpts: &gotgbot.RequestOpts{
+				Timeout: time.Second * 10,
+			},
+		},
+	})
+	if err != nil {
+		L.Log(fmt.Sprintf("failed to start polling: %v", err), C.LogLevelFatal)
+	}
+}
+
+func statsCleanup() {
+	last_clean_time, err := database.Init("getLastCleanupTime", 0, nil) // 获取上次清理每周数据的时间
+	if err != nil {
+		L.Log(fmt.Sprintf("failed to get last clean time from database: %v", err), C.LogLevelFatal)
+	}
+	lastCleanupAt := int64(0)
+	if v, ok := last_clean_time["last_cleanup_at"]; ok {
+		switch ts := v.(type) {
+		case float64:
+			lastCleanupAt = int64(ts)
+		case int64:
+			lastCleanupAt = ts
+		case int:
+			lastCleanupAt = int64(ts)
+		default:
+			L.Log(fmt.Sprintf("invalid last_cleanup_at type: %T, fallback to 0", v), C.LogLevelWarn)
+		}
+	} else {
+		L.Log("last_cleanup_at is missing, fallback to 0", C.LogLevelWarn)
+	}
+	if lastCleanupAt+int64(7*24*time.Hour.Seconds()) < time.Now().Unix() { // 如果上次清理时间超过7天，立即清理一次每周数据
+		_, err := database.Init("clearWeeklyStats", 0, nil)
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to clear weekly stats: %v", err), C.LogLevelFatal)
+		}
+		L.Log("weekly stats have been cleared on startup", C.LogLevelInfo)
+	}
+	c := cron.New()
+	// 每周一凌晨 0 点清理一次数据库中的每周统计数据
+	_, err = c.AddFunc("0 0 * * 1", func() {
+		_, err := database.Init("clearWeeklyStats", 0, nil)
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to clear weekly stats: %v", err), C.LogLevelFatal)
+		} else {
+			L.Log("weekly stats have been cleared by scheduled task", C.LogLevelInfo)
+		}
+	})
+	if err != nil {
+		L.Log(fmt.Sprintf("failed to schedule weekly stats clearing: %v", err), C.LogLevelFatal)
+	} else {
+		c.Start()
 	}
 }
