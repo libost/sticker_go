@@ -75,7 +75,7 @@ changelog:
   sort: asc
   use: github
   abbrev: 7
-  format: "- {{ .SHA }} {{ .Message }}{{ if .Logins }} ({{ .Logins | englishJoin }}){{ end }}"
+  format: "{{ .SHA }}: {{ .Message }}{{ if .Logins }} ({{ .Logins | englishJoin }}){{ end }}"
   groups:
     - title: Features
       regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
@@ -98,8 +98,7 @@ announce:
     enabled: true
     chat_id: "@submit_bot_testing"
     message_template: |
-      *New release: {{ .Tag | mdv2escape }}*  
+      {{ if eq .Env.RELEASE_CHANNEL "dev" }}🚀 新测试版发行: {{ .ShortCommit }}{{ else }}🎉 新版本发行: {{ .Tag }}{{ end }}  
 
-      {{ .ReleaseNotes | mdv2escape }}  
-      [Download]({{ .ReleaseURL }})
+      [更新日志]({{ .ReleaseURL }})
     parse_mode: MarkdownV2
