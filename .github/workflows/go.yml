@@ -79,3 +79,4 @@ jobs:
           RELEASE_CHANNEL: dev
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          FEEDBACK: https://t.me/bangdream_feedback_bot
