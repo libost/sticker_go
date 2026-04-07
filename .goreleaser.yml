@@ -71,7 +71,7 @@ release:
   target_commitish: "{{ .Commit }}"
   mode: replace
   header: |
-    {{ if eq .Env.RELEASE_CHANNEL "dev" }}# Pre-release {{ .ShortCommit }} auto generated at {{ .Date }}{{ else }}# Release {{ .Tag }} auto generated at {{ .Date }}{{ end }}  
+    {{ if eq .Env.RELEASE_CHANNEL "dev" }}## Pre-release {{ .ShortCommit }} auto generated at {{ .Date }}{{ else }}## Release {{ .Tag }} auto generated at {{ .Date }}{{ end }}  
 
 
 changelog:
