@@ -13,8 +13,9 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch=main"
+    ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}}"
     binary: sticker_go
 
   - id: windows
@@ -24,8 +25,9 @@ builds:
       - windows
     goarch:
       - amd64
+      - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch=main"
+    ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}}"
     binary: sticker_go
 
   - id: macos
@@ -35,8 +37,9 @@ builds:
       - darwin
     goarch:
       - amd64
+      - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch=main"
+    ldflags: "-X github.com/libost/sticker_go/version.Version={{.Version}} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}}"
     binary: sticker_go
 
 archives:
@@ -62,3 +65,8 @@ nfpms:
     contents:
       - src: ./env.config.yaml
         dst: /etc/sticker_go/config.yaml
+
+release:
+  prerelease: auto
+  target_commitish: "{{ .Commit }}"
+
