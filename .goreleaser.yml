@@ -86,3 +86,7 @@ changelog:
       order: 2
     - title: Others
       order: 999
+  filters:
+    exclude:
+      - '^Merge pull request #\d+ from .+$'
+      - '^Merge branch .+$'
