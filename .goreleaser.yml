@@ -1,4 +1,4 @@
-version: 2
+version: 2.15
 
 before:
   hooks:
@@ -45,7 +45,7 @@ builds:
 archives:
   - id: binaries
     formats: [binary]
-    builds:
+    ids:
       - linux
       - windows
       - macos
@@ -69,4 +69,20 @@ nfpms:
 release:
   prerelease: auto
   target_commitish: "{{ .Commit }}"
+  mode: replace
 
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Maintenance
+      regexp: '^.*?(chore|docs|style|refactor|perf|test)(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
