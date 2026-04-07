@@ -32,3 +32,4 @@ jobs:
         env:
           RELEASE_CHANNEL: stable
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}

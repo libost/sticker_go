@@ -90,3 +90,10 @@ changelog:
     exclude:
       - '^Merge pull request #\d+ from .+$'
       - '^Merge branch .+$'
+
+announce:
+  telegram:
+    enabled: true
+    chat_id: "@submit_bot_testing"
+    message: "New release: {{ .Tag }}\n\n{{ .Changelog }}\n\nDownload: {{ .URL }}"
+    parse_mode: Markdown
