@@ -86,15 +86,6 @@ func createUserIfNotExists(conn *sql.DB, id int64) error {
 	return err
 }
 
-func userExists(conn *sql.DB, id int64) (bool, error) {
-	var count int
-	err := conn.QueryRow("SELECT COUNT(1) FROM USERPOOL WHERE user_id = ?", id).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
-
 func normalizeUsageCycle(conn *sql.DB, id int64) error {
 	_, err := conn.Exec(
 		`UPDATE USERPOOL
@@ -158,7 +149,7 @@ func logIntoDonateLogsSuccess(conn *sql.DB, id int64, payload string, telegramCh
 }
 
 func initCase(id int64, conn *sql.DB) (map[string]any, error) {
-	data := map[string]any{}
+	data := map[string]any{"user_id": id, "exists": false}
 	// 从这里往下都是兼容性处理，确保即使之前的版本没有 language_code 字段也能正常使用，并且在访问时能够正确返回默认值。
 	rows, err := conn.Query("PRAGMA table_info(USERPOOL)")
 	if err != nil {
@@ -561,18 +552,6 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 	conn, err := getDB()
 	if err != nil {
 		return nil, err
-	}
-
-	data := map[string]any{"user_id": id, "exists": false}
-
-	if id > 0 {
-		exists, err := userExists(conn, id)
-		if err != nil {
-			return nil, err
-		}
-		data["exists"] = exists
-	} else {
-		return data, nil
 	}
 
 	switch request {

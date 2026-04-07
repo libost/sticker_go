@@ -56,6 +56,7 @@ func main() {
 			return
 		}
 	}
+	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	if _, err := os.Stat(C.ConfigFile); os.IsNotExist(err) {
 		L.Log("config.yaml not found, creating default config.yaml", C.LogLevelInfo)
 		_ = utils.ConfigToYAML()

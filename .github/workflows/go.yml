@@ -1,15 +1,13 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Go
+name: Test and Build
 
 on:
   push:
-    branches: [ "dev", "dev_tgs" ]
+    branches: [ "dev" ]
     paths-ignore:
-      - ".github/**"
-      - ".github/workflows/**"
-      - "config.yaml"
+      - "env.config.yaml"
       - "**.md"
       - ".gitignore"
       - "LICENSE"
@@ -19,9 +17,7 @@ on:
   pull_request:
     branches: [ "dev" ]
     paths-ignore:
-      - ".github/**"
-      - ".github/workflows/**"
-      - "config.yaml"
+      - "env.config.yaml"
       - "**.md"
       - ".gitignore"
       - "LICENSE"
@@ -29,49 +25,58 @@ on:
       - "examples/**"
       - "scripts/**"
 
-jobs:
-  build:
-    name: Build on ${{ matrix.os }} 
-    runs-on: ${{ matrix.os }}  # 告诉 GitHub 分别开这几台机器
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: sticker_go
-            suffix: ""
-          - os: windows-latest
-            artifact_name: sticker_go
-            suffix: ".exe"
-          - os: macos-latest
-            artifact_name: sticker_go
-            suffix: ""
+permissions:
+  contents: write
 
+jobs:
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: "1.25.0"
 
-      - name: Prepare version info
-        id: meta
-        shell: bash
-        run: |
-          # 获取当前时间并格式化为字符串
-          echo "build_time=$(date +'%Y-%m-%d_%T')" >> $GITHUB_OUTPUT
-          # 获取短 Commit ID (前 7 位)
-          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          # 获取分支名
-          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-
-      - name: Build
-        shell: bash
-        run: go build -ldflags "-X github.com/libost/sticker_go/version.Version=${{ github.ref_name }} -X github.com/libost/sticker_go/version.BuildTime=${{ steps.meta.outputs.build_time }} -X github.com/libost/sticker_go/version.GitCommit=${{ steps.meta.outputs.short_sha }} -X github.com/libost/sticker_go/version.Branch=${{ steps.meta.outputs.branch }}" -v -o sticker_go-${{ matrix.os}}${{ matrix.suffix }}  # 这里换成你语言的编译命令
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Delete existing dev release
+        uses: andreaswilli/delete-release-assets-action@main
         with:
-          name: ${{ matrix.artifact_name }}-${{ matrix.os }}  # 把不同平台的文件分别保存
-          path: sticker_go*
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: "v0.0.0-dev"
+          deleteOnlyFromDrafts: false
+
+      - name: Prepare stable dev prerelease tag
+        run: |
+          DEV_TAG="v0.0.0-dev"
+
+          # Keep one dev prerelease by replacing the old release/tag if it exists.
+          if gh release view "${DEV_TAG}" >/dev/null 2>&1; then
+            gh release delete "${DEV_TAG}" --yes --cleanup-tag
+          fi
+
+          # Configure git for tag operations
+          git config user.email "dev-release@github.com"
+          git config user.name "Dev Release Bot"
+
+          # Force update local tag and push to remote
+          git tag -f "${DEV_TAG}"
+          git push -f origin "${DEV_TAG}"
+          echo "DEV_TAG=${DEV_TAG}" >> $GITHUB_ENV
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          RELEASE_CHANNEL: dev
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          FEEDBACK: https://t.me/bangdream_feedback_bot

@@ -30,4 +30,7 @@ jobs:
           version: "~> v2"
           args: release --clean
         env:
+          RELEASE_CHANNEL: stable
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          FEEDBACK: https://t.me/bangdream_feedback_bot

@@ -10,3 +10,4 @@ config.yaml
 *.txt
 *.sh
 data/
+dist/
