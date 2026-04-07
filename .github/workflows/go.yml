@@ -48,11 +48,16 @@ jobs:
         with:
           go-version: "1.25.0"
 
-      - name: Create dev prerelease tag
+      - name: Prepare stable dev prerelease tag
         run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          DEV_TAG="v0.0.0-dev.${SHORT_SHA}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-          git tag "${DEV_TAG}"
+          DEV_TAG="v0.0.0-dev"
+
+          # Keep one dev prerelease by replacing the old release/tag if it exists.
+          if gh release view "${DEV_TAG}" >/dev/null 2>&1; then
+            gh release delete "${DEV_TAG}" --yes --cleanup-tag
+          fi
+
+          git tag -f "${DEV_TAG}"
           echo "DEV_TAG=${DEV_TAG}" >> $GITHUB_ENV
 
       - name: Run GoReleaser
@@ -62,4 +67,5 @@ jobs:
           version: "~> v2"
           args: release --clean
         env:
+          RELEASE_CHANNEL: dev
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

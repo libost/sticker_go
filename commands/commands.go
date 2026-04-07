@@ -870,7 +870,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	if V.Version == "dev" {
+	if V.Branch == "dev" {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.upgrade_desc_dev", langCode), nil)
 		return err
 	}
