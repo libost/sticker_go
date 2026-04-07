@@ -74,6 +74,8 @@ release:
 changelog:
   sort: asc
   use: github
+  abbrev: 7
+  format: "- {{ .SHA }} {{ .Message }}{{ if .Logins }} ({{ .Logins | englishJoin }}){{ end }}"
   groups:
     - title: Features
       regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
@@ -95,5 +97,5 @@ announce:
   telegram:
     enabled: true
     chat_id: "@submit_bot_testing"
-    message_template: "New release: {{ .Tag }}\n\n{{ .ReleaseNotes }}\n\nDownload: {{ .ReleaseURL }}"
+    message_template: '*New release: {{ .Tag | mdv2escape }}*\n\n{{ .ReleaseNotes | mdv2escape }}\n\n[Download]({{ .ReleaseURL }})'
     parse_mode: MarkdownV2
