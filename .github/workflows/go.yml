@@ -49,6 +49,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag: "v0.0.0-dev"
+          deleteOnlyFromDrafts: false
 
       - name: Prepare stable dev prerelease tag
         run: |
