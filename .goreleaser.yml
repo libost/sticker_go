@@ -95,5 +95,5 @@ announce:
   telegram:
     enabled: true
     chat_id: "@submit_bot_testing"
-    message: "New release: {{ .Tag }}\n\n{{ .Changelog }}\n\nDownload: {{ .URL }}"
+    message_template: "New release: {{ .Tag }}\n\n{{ .Changelog }}\n\nDownload: {{ .URL }}"
     parse_mode: Markdown
