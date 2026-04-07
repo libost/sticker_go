@@ -449,11 +449,11 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var execname string
 	switch runtime.GOOS {
 	case "windows":
-		execname = fmt.Sprintf("sticker_go_%s_windows_amd64.exe", version)
+		execname = fmt.Sprintf("sticker_go_%s_windows_%s.exe", version, runtime.GOARCH)
 	case "darwin":
-		execname = fmt.Sprintf("sticker_go_%s_darwin_amd64", version)
+		execname = fmt.Sprintf("sticker_go_%s_darwin_%s", version, runtime.GOARCH)
 	case "linux":
-		execname = fmt.Sprintf("sticker_go_%s_linux_amd64", version)
+		execname = fmt.Sprintf("sticker_go_%s_linux_%s", version, runtime.GOARCH)
 	}
 	currentPath, err := os.Executable()
 	if err != nil {
