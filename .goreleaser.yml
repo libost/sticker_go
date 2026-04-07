@@ -98,7 +98,8 @@ announce:
     enabled: true
     chat_id: "@submit_bot_testing"
     message_template: |
-      '*New release: {{ .Tag | mdv2escape }}*  
+      *New release: {{ .Tag | mdv2escape }}*  
+
       {{ .ReleaseNotes | mdv2escape }}  
-      [Download]({{ .ReleaseURL }})'
+      [Download]({{ .ReleaseURL }})
     parse_mode: MarkdownV2
