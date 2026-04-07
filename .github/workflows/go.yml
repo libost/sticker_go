@@ -7,9 +7,7 @@ on:
   push:
     branches: [ "dev" ]
     paths-ignore:
-      - ".github/**"
-      - ".github/workflows/**"
-      - "config.yaml"
+      - "env.config.yaml"
       - "**.md"
       - ".gitignore"
       - "LICENSE"
@@ -19,9 +17,7 @@ on:
   pull_request:
     branches: [ "dev" ]
     paths-ignore:
-      - ".github/**"
-      - ".github/workflows/**"
-      - "config.yaml"
+      - "env.config.yaml"
       - "**.md"
       - ".gitignore"
       - "LICENSE"
@@ -57,7 +53,13 @@ jobs:
             gh release delete "${DEV_TAG}" --yes --cleanup-tag
           fi
 
+          # Configure git for tag operations
+          git config user.email "dev-release@github.com"
+          git config user.name "Dev Release Bot"
+
+          # Force update local tag and push to remote
           git tag -f "${DEV_TAG}"
+          git push -f origin "${DEV_TAG}"
           echo "DEV_TAG=${DEV_TAG}" >> $GITHUB_ENV
 
       - name: Run GoReleaser
