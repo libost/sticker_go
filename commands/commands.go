@@ -174,17 +174,14 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 func help(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	displayText := I.GetLocalisedString("commands.help_desc_private", langCode)
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
+	cf := config.AppConfig
 	if cf.Donation.Enabled {
 		displayText += "\n" + I.GetLocalisedString("commands.help_desc_donate_enabled", langCode)
 	}
 	if ctx.EffectiveChat.Type != "private" {
 		displayText = I.GetLocalisedString("commands.help_desc_group", langCode)
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
 	if err != nil {
 		return err
 	}
@@ -225,10 +222,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
+	cf := config.AppConfig
 	if (int(data["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
 		_, err = database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
 		if err != nil {
@@ -335,10 +329,7 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_no_key", langCode), nil)
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
+	cf := config.AppConfig
 	if arg[1] != cf.General.Adminkey {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin with incorrect key", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_invalid_key", langCode), nil)
@@ -423,10 +414,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 			{Command: "lang", Description: I.GetLocalisedString("commands.setcommands_desc_list[9]", code)},
 			{Command: "about", Description: I.GetLocalisedString("commands.setcommands_desc_list[3]", code)},
 		}
-		cf, err := config.Init()
-		if err != nil {
-			return err
-		}
+		cf := config.AppConfig
 		if cf.Donation.Enabled {
 			privateCommands = append(privateCommands, gotgbot.BotCommand{Command: "donate", Description: I.GetLocalisedString("commands.setcommands_desc_list[4]", code)})
 		}
@@ -620,10 +608,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_nosticker", langCode), nil)
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
+	cf := config.AppConfig
 	currentUsage, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -697,10 +682,7 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.donate_admin_refuse", langCode), nil)
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
+	cf := config.AppConfig
 	if !cf.Donation.Enabled {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.donate_disabled", langCode), nil)
 		if err != nil {

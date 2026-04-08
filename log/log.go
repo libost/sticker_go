@@ -10,11 +10,7 @@ import (
 )
 
 func Log(message string, level C.LogLevel) {
-	cf, err := config.Init()
-	if err != nil {
-		log.Printf("Failed to initialize config for logging: %v\n", err)
-		return
-	}
+	cf := config.AppConfig
 	var systemdLevel string
 	switch cf.Log.Level {
 	case "DEBUG":
@@ -85,10 +81,7 @@ func logToFile(message string) {
 }
 
 func timeNow() (string, bool) {
-	cf, err := config.Init()
-	if err != nil {
-		log.Fatal("failed to initialize config")
-	}
+	cf := config.AppConfig
 	timestamp, err := C.CurrentTime(cf.Misc.Timezone)
 	var isTimeRight bool
 	if err != nil {

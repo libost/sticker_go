@@ -66,6 +66,8 @@ type Config struct {
 	} `yaml:"misc,omitempty"`
 }
 
+var AppConfig *Config
+
 func loadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -97,15 +99,15 @@ func loadConfig(configPath string) (*Config, error) {
 	return cf, nil
 }
 
-func Init() (*Config, error) {
+func Init() {
 	var configPath = C.ConfigFile
 	_, err := os.Stat(configPath)
 	if os.IsNotExist(err) {
-		return nil, err
+		panic(err)
 	}
 	cf, err := loadConfig(configPath)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return cf, nil
+	AppConfig = cf
 }

@@ -45,10 +45,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		currentUsage["usage"] = float64(0)
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
+	cf := config.AppConfig
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
 	if subErr != nil {

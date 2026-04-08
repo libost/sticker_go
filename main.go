@@ -44,7 +44,8 @@ func main() {
 			return
 		case "Dir", "-D", "-d":
 			if len(args) < 3 || strings.TrimSpace(args[2]) == "" {
-				L.Log("missing directory path for -d, usage: sticker_go -d <base_dir>", C.LogLevelFatal)
+				fmt.Printf("missing directory path for -d, usage: sticker_go -d <base_dir>\n")
+				return
 			}
 			C.SetBaseDir(args[2])
 			fmt.Printf("Base directory set to: %s\n", C.Dir)
@@ -56,32 +57,20 @@ func main() {
 			return
 		}
 	}
-	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	if _, err := os.Stat(C.ConfigFile); os.IsNotExist(err) {
-		L.Log("config.yaml not found, creating default config.yaml", C.LogLevelInfo)
+		fmt.Printf("config file not found at %s, creating default config file...\n", C.ConfigFile)
 		_ = utils.ConfigToYAML()
-		L.Log("config.yaml not found, a default config.yaml has been created. Please edit it and restart the bot.", C.LogLevelError)
+		fmt.Printf("default config file has been created at %s, please edit the config file and restart the bot.\n", C.ConfigFile)
+		os.Exit(1)
+	}
+	config.Init()
+	cfg := config.AppConfig
+	if err := configCheck(cfg); err != nil {
+		L.Log(fmt.Sprintf("config check failed: %v", err), C.LogLevelFatal)
 		return
 	}
-	cfg, err := config.Init()
-	if err != nil {
-		L.Log(fmt.Sprintf("failed to initialize config: %v", err), C.LogLevelFatal)
-	}
-	if cfg == nil {
-		L.Log("config initialization returned nil config", C.LogLevelFatal)
-	}
-	if cfg.Subscription.Enabled && strings.TrimSpace(cfg.Subscription.Channel) == "" {
-		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelFatal)
-	}
+	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	token := cfg.General.Token
-	switch "" {
-	case strings.TrimSpace(token):
-		L.Log("bot token is not set in config.yaml, please set your bot token to start the bot", C.LogLevelFatal)
-		return
-	case cfg.General.Adminkey:
-		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelFatal)
-		return
-	}
 	httpClient := httpClientWithProxy(cfg)
 	b, err := gotgbot.NewBot(token, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
@@ -431,4 +420,24 @@ func statsCleanup() {
 	} else {
 		c.Start()
 	}
+}
+
+func configCheck(cfg *config.Config) error {
+	if cfg == nil {
+		L.Log("config initialization returned nil config", C.LogLevelError)
+		return fmt.Errorf("config initialization returned nil config")
+	}
+	if cfg.Subscription.Enabled && strings.TrimSpace(cfg.Subscription.Channel) == "" {
+		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelError)
+		return fmt.Errorf("subscription check is enabled but channel is not set in config")
+	}
+	switch "" {
+	case strings.TrimSpace(cfg.General.Token):
+		L.Log("bot token is not set in config.yaml, please set your bot token to start the bot", C.LogLevelError)
+		return fmt.Errorf("bot token is not set in config.yaml")
+	case strings.TrimSpace(cfg.General.Adminkey):
+		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelError)
+		return fmt.Errorf("admin key is not set in config.yaml")
+	}
+	return nil
 }

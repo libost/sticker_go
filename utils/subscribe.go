@@ -17,19 +17,10 @@ import (
 var ErrUserNotSubscribed = errors.New("user is not subscribed")
 
 func SubscribeCheck(b *gotgbot.Bot, ctx *ext.Context, uid int64, langCode string) error {
-	cf, err := config.Init()
-	if err != nil {
-		log.Log(fmt.Sprintf("User %d failed to load config for subscription check: %v", uid, err), C.LogLevelError)
-		return err
-	}
+	cf := config.AppConfig
 	if !cf.Subscription.Enabled {
 		return nil // 订阅检查未启用，直接通过
 	}
-	if cf.Subscription.Channel == "" {
-		log.Log(fmt.Sprintf("User %d failed to check subscription: channel is empty", uid), C.LogLevelError)
-		return fmt.Errorf("channel is empty")
-	}
-
 	result, err := b.GetChatMember(0, uid, &gotgbot.GetChatMemberOpts{
 		RequestOpts: &gotgbot.RequestOpts{
 			OverrideParams: map[string]any{

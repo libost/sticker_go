@@ -40,10 +40,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sticker set: %v", err)
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %v", err)
-	}
+	cf := config.AppConfig
 	packLength := len(stickerSet.Stickers)
 	packLimit := cf.General.LimitPerPack
 	if cf.Donation.BonusEnabled {

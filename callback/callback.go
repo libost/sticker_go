@@ -53,20 +53,16 @@ func allPreCheckouts(pq *gotgbot.PreCheckoutQuery) bool {
 
 func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	pq := ctx.PreCheckoutQuery
-	cf, err := config.Init()
-	if err != nil {
-		log.Log(fmt.Sprintf("User %d failed to load config during pre-checkout: %v", pq.From.Id, err), C.LogLevelError)
-		return err
-	}
+	cf := config.AppConfig
 	if !cf.Donation.Enabled {
 		langCode := I.LangCodePrefer(pq.From.Id, pq.From.LanguageCode)
 		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
-		_, err = b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
+		_, err := b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
 			ErrorMessage: I.GetLocalisedString("callback.donate_disabled", langCode),
 		})
 		return err
 	}
-	_, err = b.AnswerPreCheckoutQuery(pq.Id, true, nil)
+	_, err := b.AnswerPreCheckoutQuery(pq.Id, true, nil)
 	return err
 }
 
@@ -188,11 +184,7 @@ func removeZipFiles(zipPaths []string) {
 
 func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string, msgId int64) error {
 	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, msgId, ctx)
-	cf, cfErr := config.Init()
-	if cfErr != nil {
-		log.Log(fmt.Sprintf("User %d failed to load config in GetPack: %v", ctx.EffectiveUser.Id, cfErr), C.LogLevelError)
-		return cfErr
-	}
+	cf := config.AppConfig
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {
 		msg := fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany", langCode), limitErr.PackLength, limitErr.Limit)
