@@ -14,3 +14,4 @@ README_zh.md
 docs
 .vscode
 *.sh
+dist

@@ -15,7 +15,7 @@ builds:
       - amd64
       - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}}"
+    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}} -s -w"
     binary: sticker_go
 
   - id: windows
@@ -27,7 +27,7 @@ builds:
       - amd64
       - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}}"
+    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}} -s -w"
     binary: sticker_go
 
   - id: macos
@@ -39,7 +39,7 @@ builds:
       - amd64
       - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}}"
+    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}} -s -w"
     binary: sticker_go
 
 archives:
@@ -101,6 +101,8 @@ announce:
     enabled: true
     chat_id: "@BangDream0114"
     message_template: |
+      \#{{ .ProjectName | mdv2escape }} {{ if eq .Env.RELEASE_CHANNEL "dev" }}测试版{{ else }}新版本{{ end }}信息    
+
       {{ if eq .Env.RELEASE_CHANNEL "dev" }}🚀 {{ .ProjectName | mdv2escape }} 新测试版发行: {{ .ShortCommit | mdv2escape }}{{ else }}🎉 {{ .ProjectName | mdv2escape }} 新版本发行: {{ .Tag | mdv2escape }}{{ end }}  
 
       [有问题点我反馈]({{ .Env.FEEDBACK | mdv2escape }}) 
