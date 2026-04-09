@@ -195,6 +195,12 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		})
 		log.Log(fmt.Sprintf("User %d attempted to download a sticker pack with too many stickers", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		return err
+	} else if errors.Is(err, stickers.ErrUserConversionInProgress) {
+		_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.conversion_in_progress", langCode), &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: msgId,
+		})
+		return nil
 	}
 	if err != nil {
 		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.getpack_failed", langCode), &gotgbot.EditMessageTextOpts{

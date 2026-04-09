@@ -41,6 +41,11 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		return nil, fmt.Errorf("failed to get sticker set: %v", err)
 	}
 
+	if !tryStartUserConversion(uid) {
+		return nil, ErrUserConversionInProgress
+	}
+	defer finishUserConversion(uid)
+
 	packLength := len(stickerSet.Stickers)
 	packLimit := config.AppConfig.General.LimitPerPack
 	if config.AppConfig.Donation.BonusEnabled {

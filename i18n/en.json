@@ -107,6 +107,7 @@
         "pack_progress": "🤖 Processing sticker pack %[1]s... \nProgress(%[2]d/%[3]d)",
         "tgs_converting": "🤖 Converting TGS stickers...",
         "processing": "🤖 Processing your stickers, please wait...",
+        "conversion_in_progress": "🤖 You already have sticker(s) being processed. Please wait.",
         "getpack_callback": "Get Complete Sticker Pack",
         "success": "✅ Sticker processing complete!"
     },

@@ -23,6 +23,25 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 )
 
+var (
+	convertingUsers             sync.Map
+	ErrUserConversionInProgress = errors.New("user conversion in progress")
+)
+
+func IsUserConverting(uid int64) bool {
+	_, converting := convertingUsers.Load(uid)
+	return converting
+}
+
+func tryStartUserConversion(uid int64) bool {
+	_, loaded := convertingUsers.LoadOrStore(uid, struct{}{})
+	return !loaded
+}
+
+func finishUserConversion(uid int64) {
+	convertingUsers.Delete(uid)
+}
+
 func AddHandlers(dispatcher *ext.Dispatcher) {
 	// 在这里注册处理器，例如：
 	dispatcher.AddHandler(handlers.NewMessage(message.Sticker, stickerHandler))
@@ -109,6 +128,13 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	filePath, cleanup, err := GetSticker(b, sticker, ctx.EffectiveUser.Id, config.AppConfig)
 	if err != nil {
+		if errors.Is(err, ErrUserConversionInProgress) {
+			_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.conversion_in_progress", langCode), &gotgbot.EditMessageTextOpts{
+				ChatId:    sentMsg.Chat.Id,
+				MessageId: sentMsg.MessageId,
+			})
+			return nil
+		}
 		return err
 	}
 	defer cleanup()
@@ -147,6 +173,10 @@ func GetSticker(b *gotgbot.Bot, sticker *gotgbot.Sticker, uid int64, cf *config.
 	if sticker == nil {
 		return "", func() {}, errors.New("sticker is nil")
 	}
+	if !tryStartUserConversion(uid) {
+		return "", func() {}, ErrUserConversionInProgress
+	}
+	defer finishUserConversion(uid)
 
 	fileExt, fileExtConverted := getStickerExtensions(sticker, cf.General.TgsSupport)
 	cachefilePath := getStickerCachePath(sticker.FileId, fileExt, fileExtConverted, cf.General.TgsSupport)

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -628,6 +629,13 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	sticker := ctx.EffectiveMessage.ReplyToMessage.Sticker
 	filePath, _, err := S.GetSticker(b, sticker, ctx.EffectiveUser.Id, config.AppConfig)
 	if err != nil {
+		if errors.Is(err, S.ErrUserConversionInProgress) {
+			_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("stickers.conversion_in_progress", langCode), nil)
+			if replyErr != nil {
+				return replyErr
+			}
+			return nil
+		}
 		return err
 	}
 	fileSend, err := os.Open(filePath)
