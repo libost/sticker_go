@@ -40,10 +40,10 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sticker set: %v", err)
 	}
-	cf := config.AppConfig
+
 	packLength := len(stickerSet.Stickers)
-	packLimit := cf.General.LimitPerPack
-	if cf.Donation.BonusEnabled {
+	packLimit := config.AppConfig.General.LimitPerPack
+	if config.AppConfig.Donation.BonusEnabled {
 		userGroup, err := database.Init("user_group", uid, nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user group for donation bonus: %v", err)
@@ -87,7 +87,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		var fileExt, fileExtConverted string
 		switch {
 		case sticker.IsAnimated:
-			if cf.General.TgsSupport {
+			if config.AppConfig.General.TgsSupport {
 				fileExt, fileExtConverted = ".tgs", ".gif"
 			} else {
 				fileExt, fileExtConverted = ".tgs", ".tgs"
@@ -168,7 +168,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 			}
 		default:
 			tgsContained = true
-			if cf.General.TgsSupport {
+			if config.AppConfig.General.TgsSupport {
 				convertedPath = tempDir + "/" + sticker.FileId + ".tgs" + ".gif"
 				tgsFileIDs = append(tgsFileIDs, sticker.FileId)
 			} else {
@@ -183,7 +183,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 
 		filePaths = append(filePaths, convertedPath)
 	}
-	if tgsContained && cf.General.TgsSupport {
+	if tgsContained && config.AppConfig.General.TgsSupport {
 		langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 		_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.tgs_converting", langCode), &gotgbot.EditMessageTextOpts{
 			ChatId:    uid,
@@ -241,7 +241,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 	if err != nil {
 		return nil, err
 	}
-	if !cf.Cache.Enabled {
+	if !config.AppConfig.Cache.Enabled {
 		for _, path := range filePaths {
 			os.Remove(path) // 如果缓存未启用，处理完成后删除文件
 			log.Log(fmt.Sprintf("Cache disabled, removed file: %s", path), C.LogLevelInfo)

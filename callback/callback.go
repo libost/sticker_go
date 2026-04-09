@@ -53,8 +53,7 @@ func allPreCheckouts(pq *gotgbot.PreCheckoutQuery) bool {
 
 func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	pq := ctx.PreCheckoutQuery
-	cf := config.AppConfig
-	if !cf.Donation.Enabled {
+	if !config.AppConfig.Donation.Enabled {
 		langCode := I.LangCodePrefer(pq.From.Id, pq.From.LanguageCode)
 		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
 		_, err := b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
@@ -184,11 +183,10 @@ func removeZipFiles(zipPaths []string) {
 
 func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string, msgId int64) error {
 	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, msgId, ctx)
-	cf := config.AppConfig
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {
 		msg := fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany", langCode), limitErr.PackLength, limitErr.Limit)
-		if limitErr.Limit == int(float64(cf.General.LimitPerPack)*C.DonationBonusMultiplier) {
+		if limitErr.Limit == int(float64(config.AppConfig.General.LimitPerPack)*C.DonationBonusMultiplier) {
 			msg += fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany_bonus", langCode), C.DonationBonusMultiplier)
 		}
 		_, _, _ = b.EditMessageText(msg, &gotgbot.EditMessageTextOpts{
@@ -256,7 +254,7 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		return err
 	}
 	displayText := I.GetLocalisedString("callback.getpack_success", langCode)
-	if usergroup["user_group"] != "sponsor" && cf.Donation.Enabled {
+	if usergroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled {
 		n := rand.IntN(10) + 1
 		if n <= 2 { // 20% 的概率提示用户支持开发
 			displayText += I.GetLocalisedString("general.donate_reminder", langCode)

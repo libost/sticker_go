@@ -19,6 +19,9 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/sticker_go_linux -d /etc/sticker_go/
+# 自v1.9.2起支持热重载配置，发送 SIGHUP 信号即可重载配置
+# 警告：热重载不适用于Telegram Bot Token的修改，修改Token后必须重启服务才能生效
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=1
 

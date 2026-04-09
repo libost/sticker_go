@@ -15,7 +15,12 @@ builds:
       - amd64
       - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}} -s -w"
+    ldflags: |
+      "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} 
+      -X github.com/libost/sticker_go/version.BuildTime={{.Date}} 
+      -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} 
+      -X github.com/libost/sticker_go/version.Branch={{.Branch}} 
+      {{ if eq .Env.RELEASE_CHANNEL "stable" }}-s -w{{ end }}"
     binary: sticker_go
 
   - id: windows
@@ -27,7 +32,12 @@ builds:
       - amd64
       - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}} -s -w"
+    ldflags: |
+      "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} 
+      -X github.com/libost/sticker_go/version.BuildTime={{.Date}} 
+      -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} 
+      -X github.com/libost/sticker_go/version.Branch={{.Branch}} 
+      {{ if eq .Env.RELEASE_CHANNEL "stable" }}-s -w{{ end }}"
     binary: sticker_go
 
   - id: macos
@@ -39,7 +49,12 @@ builds:
       - amd64
       - arm64
     main: ./main.go
-    ldflags: "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} -X github.com/libost/sticker_go/version.BuildTime={{.Date}} -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} -X github.com/libost/sticker_go/version.Branch={{.Branch}} -s -w"
+    ldflags: |
+      "-X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL \"dev\" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }} 
+      -X github.com/libost/sticker_go/version.BuildTime={{.Date}} 
+      -X github.com/libost/sticker_go/version.GitCommit={{.ShortCommit}} 
+      -X github.com/libost/sticker_go/version.Branch={{.Branch}} 
+      {{ if eq .Env.RELEASE_CHANNEL "stable" }}-s -w{{ end }}"
     binary: sticker_go
 
 archives:

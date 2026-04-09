@@ -8,6 +8,5 @@ config.yaml
 *.exe
 *.old
 *.txt
-*.sh
 data/
 dist/

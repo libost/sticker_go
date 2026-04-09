@@ -45,26 +45,25 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		currentUsage["usage"] = float64(0)
 	}
-	cf := config.AppConfig
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
 	if subErr != nil {
 		return nil // 用户未订阅，已在 SubscribeCheck 中发送提示消息，直接返回不继续处理
 	}
-	limit := cf.General.Limit
+	limit := config.AppConfig.General.Limit
 	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
 	}
-	if userGroup["user_group"] == "sponsor" && cf.Donation.BonusEnabled {
-		limit = int(float64(cf.General.Limit) * C.DonationBonusMultiplier) // 赞助用户的使用限制增加奖励倍数
+	if userGroup["user_group"] == "sponsor" && config.AppConfig.Donation.BonusEnabled {
+		limit = int(float64(config.AppConfig.General.Limit) * C.DonationBonusMultiplier) // 赞助用户的使用限制增加奖励倍数
 	}
 	if int(currentUsage["usage"].(float64)) >= limit && (int(currentUsage["last_cycle_starts_at"].(float64))+24*3600) >= int(time.Now().Unix()) {
 		displayText := fmt.Sprintf(I.GetLocalisedString("general.out_of_quota", langCode), limit)
-		if userGroup["user_group"] != "sponsor" && cf.Donation.Enabled && cf.Donation.BonusEnabled {
+		if userGroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled && config.AppConfig.Donation.BonusEnabled {
 			displayText += I.GetLocalisedString("general.donate_reminder_outofquota", langCode)
 		}
-		if userGroup["user_group"] == "sponsor" && cf.Donation.BonusEnabled {
+		if userGroup["user_group"] == "sponsor" && config.AppConfig.Donation.BonusEnabled {
 			displayText += I.GetLocalisedString("general.donated", langCode)
 		}
 		_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
@@ -108,7 +107,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		},
 	}
-	filePath, cleanup, err := GetSticker(b, sticker, ctx.EffectiveUser.Id, cf)
+	filePath, cleanup, err := GetSticker(b, sticker, ctx.EffectiveUser.Id, config.AppConfig)
 	if err != nil {
 		return err
 	}
@@ -127,7 +126,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	displayText := I.GetLocalisedString("stickers.success", langCode)
-	if userGroup["user_group"] != "sponsor" && cf.Donation.Enabled {
+	if userGroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled {
 		n := rand.IntN(10) + 1
 		if n <= 2 { // 20% 的概率提示用户支持开发
 			displayText += I.GetLocalisedString("general.donate_reminder", langCode)

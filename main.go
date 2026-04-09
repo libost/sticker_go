@@ -34,7 +34,7 @@ import (
 func main() {
 	// 捕获系统信号，在启动完成后执行优雅关闭流程
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(sigs)
 	args := os.Args
 	if len(args) > 1 {
@@ -61,13 +61,12 @@ func main() {
 		fmt.Printf("config file not found at %s, creating default config file...\n", C.ConfigFile)
 		_ = utils.ConfigToYAML()
 		fmt.Printf("default config file has been created at %s, please edit the config file and restart the bot.\n", C.ConfigFile)
-		os.Exit(1)
+		return
 	}
 	config.Init()
 	cfg := config.AppConfig
 	if err := configCheck(cfg); err != nil {
 		L.Log(fmt.Sprintf("config check failed: %v", err), C.LogLevelFatal)
-		return
 	}
 	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	token := cfg.General.Token
@@ -96,12 +95,12 @@ func main() {
 	if cfg.Cache.Enabled {
 		go func() {
 			// 立即执行一次
-			cleanFiles(cacheDir, cfg, "cache")
+			cleanFiles(cacheDir, config.AppConfig, "cache")
 
 			// 之后每隔 1 小时检查一次
 			ticker := time.NewTicker(time.Duration(cfg.Cache.ExpireHours) * time.Hour)
 			for range ticker.C {
-				cleanFiles(cacheDir, cfg, "cache")
+				cleanFiles(cacheDir, config.AppConfig, "cache")
 			}
 		}()
 	} else {
@@ -125,11 +124,11 @@ func main() {
 	// 定时清理日志目录中的过期文件
 	go func() {
 		// 立即执行一次
-		cleanFiles(logDir, cfg, "log")
+		cleanFiles(logDir, config.AppConfig, "log")
 		// 之后每天检查一次
 		ticker := time.NewTicker(24 * time.Hour)
 		for range ticker.C {
-			cleanFiles(logDir, cfg, "log")
+			cleanFiles(logDir, config.AppConfig, "log")
 		}
 	}()
 	statsCleanup() // 启动统计数据清理任务
@@ -154,20 +153,32 @@ func main() {
 	communicateCheck(cfg, updater, b)
 	c := cron.New()
 	go func() {
-		sig := <-sigs
-		L.Log(fmt.Sprintf("received signal: %v, starting graceful shutdown...", sig), C.LogLevelInfo)
+		for sig := range sigs {
+			switch sig {
+			case syscall.SIGINT, syscall.SIGTERM:
+				L.Log(fmt.Sprintf("received signal: %v, starting graceful shutdown...", sig), C.LogLevelInfo)
 
-		cronCtx := c.Stop()
-		if cronCtx != nil {
-			<-cronCtx.Done()
+				cronCtx := c.Stop()
+				if cronCtx != nil {
+					<-cronCtx.Done()
+				}
+
+				if err := updater.Stop(); err != nil {
+					L.Log(fmt.Sprintf("graceful shutdown failed: %v", err), C.LogLevelError)
+					return
+				}
+
+				L.Log("graceful shutdown completed", C.LogLevelInfo)
+				return
+			case syscall.SIGHUP:
+				L.Log("received SIGHUP signal, reloading configuration...", C.LogLevelInfo)
+				config.Init()
+				if err := configCheck(config.AppConfig); err != nil {
+					L.Log(fmt.Sprintf("config check failed after reload: %v", err), C.LogLevelFatal)
+				}
+				L.Log("configuration reloaded successfully", C.LogLevelInfo)
+			}
 		}
-
-		if err := updater.Stop(); err != nil {
-			L.Log(fmt.Sprintf("graceful shutdown failed: %v", err), C.LogLevelError)
-			return
-		}
-
-		L.Log("graceful shutdown completed", C.LogLevelInfo)
 	}()
 
 	updater.Idle() // 阻塞直到进程被关闭
@@ -238,6 +249,7 @@ func httpClientWithProxy(cfg *config.Config) *http.Client {
 		case "socks5":
 			dialer, _ := proxy.SOCKS5("tcp", fmt.Sprintf("%s:%d", cfg.Proxy.Host, cfg.Proxy.Port), nil, proxy.Direct)
 			httpClient = &http.Client{
+				Timeout: time.Second * 10,
 				Transport: &http.Transport{
 					Dial: dialer.Dial,
 				},
@@ -246,6 +258,7 @@ func httpClientWithProxy(cfg *config.Config) *http.Client {
 		case "http":
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%d", cfg.Proxy.Host, cfg.Proxy.Port))
 			httpClient = &http.Client{
+				Timeout: time.Second * 10,
 				Transport: &http.Transport{
 					Proxy: http.ProxyURL(proxyUrl),
 				},
