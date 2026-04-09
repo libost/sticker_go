@@ -19,7 +19,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/sticker_go_linux -d /etc/sticker_go/
-# Supports hot reload of configuration since v1.9.2, send SIGHUP signal to reload configuration
+# Supports hot reload of configuration since v1.9.3, send SIGHUP signal to reload configuration
 # Warning: Hot reload does not apply to changes in Telegram Bot Token, you must restart the service for changes to take effect
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
