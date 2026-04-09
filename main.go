@@ -66,7 +66,7 @@ func main() {
 	config.Init()
 	cfg := config.AppConfig
 	if err := configCheck(cfg); err != nil {
-		L.Log(fmt.Sprintf("config check failed: %v", err), C.LogLevelFatal)
+		panic(fmt.Sprintf("config check failed: %v", err))
 	}
 	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	token := cfg.General.Token
