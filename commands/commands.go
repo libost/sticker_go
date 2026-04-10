@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -174,17 +175,13 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 func help(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	displayText := I.GetLocalisedString("commands.help_desc_private", langCode)
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
-	if cf.Donation.Enabled {
+	if config.AppConfig.Donation.Enabled {
 		displayText += "\n" + I.GetLocalisedString("commands.help_desc_donate_enabled", langCode)
 	}
 	if ctx.EffectiveChat.Type != "private" {
 		displayText = I.GetLocalisedString("commands.help_desc_group", langCode)
 	}
-	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	_, err := ctx.EffectiveMessage.Reply(b, displayText, nil)
 	if err != nil {
 		return err
 	}
@@ -225,10 +222,6 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
 	if (int(data["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
 		_, err = database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
 		if err != nil {
@@ -241,9 +234,9 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return err
 	}
-	limit := cf.General.Limit
+	limit := config.AppConfig.General.Limit
 	var donationBonusExplanation string
-	if userGroup["user_group"].(string) == "sponsor" && cf.Donation.BonusEnabled {
+	if userGroup["user_group"].(string) == "sponsor" && config.AppConfig.Donation.BonusEnabled {
 		limit = int(float64(limit) * C.DonationBonusMultiplier)
 		donationBonusExplanation = fmt.Sprintf(I.GetLocalisedString("commands.usage_desc_multiply", langCode), C.DonationBonusMultiplier)
 	}
@@ -335,11 +328,7 @@ func setadmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_no_key", langCode), nil)
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
-	if arg[1] != cf.General.Adminkey {
+	if arg[1] != config.AppConfig.General.Adminkey {
 		log.Log(fmt.Sprintf("User %d attempted to trigger /setadmin with incorrect key", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.setadmin_invalid_key", langCode), nil)
 		return err
@@ -423,11 +412,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 			{Command: "lang", Description: I.GetLocalisedString("commands.setcommands_desc_list[9]", code)},
 			{Command: "about", Description: I.GetLocalisedString("commands.setcommands_desc_list[3]", code)},
 		}
-		cf, err := config.Init()
-		if err != nil {
-			return err
-		}
-		if cf.Donation.Enabled {
+		if config.AppConfig.Donation.Enabled {
 			privateCommands = append(privateCommands, gotgbot.BotCommand{Command: "donate", Description: I.GetLocalisedString("commands.setcommands_desc_list[4]", code)})
 		}
 		if languageCode == "en" {
@@ -620,10 +605,6 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_nosticker", langCode), nil)
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
 	currentUsage, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -632,7 +613,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		currentUsage["usage"] = float64(0)
 	}
-	limit := cf.General.Limit
+	limit := config.AppConfig.General.Limit
 	if int(currentUsage["usage"].(float64)) >= limit {
 		_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("general.out_of_quota", langCode), limit), nil)
 		return err
@@ -646,8 +627,15 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	sticker := ctx.EffectiveMessage.ReplyToMessage.Sticker
-	filePath, _, err := S.GetSticker(b, sticker, ctx.EffectiveUser.Id, cf)
+	filePath, _, err := S.GetSticker(b, sticker, ctx.EffectiveUser.Id, config.AppConfig)
 	if err != nil {
+		if errors.Is(err, S.ErrUserConversionInProgress) {
+			_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("stickers.conversion_in_progress", langCode), nil)
+			if replyErr != nil {
+				return replyErr
+			}
+			return nil
+		}
 		return err
 	}
 	fileSend, err := os.Open(filePath)
@@ -697,11 +685,7 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.donate_admin_refuse", langCode), nil)
 		return err
 	}
-	cf, err := config.Init()
-	if err != nil {
-		return err
-	}
-	if !cf.Donation.Enabled {
+	if !config.AppConfig.Donation.Enabled {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.donate_disabled", langCode), nil)
 		if err != nil {
 			return err
@@ -718,20 +702,20 @@ func donate(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err == nil {
 			price.Amount = amount
 		}
-		if amount < int64(cf.Donation.AmountRestrict.Min) {
-			price.Amount = int64(cf.Donation.AmountRestrict.Min)
+		if amount < int64(config.AppConfig.Donation.AmountRestrict.Min) {
+			price.Amount = int64(config.AppConfig.Donation.AmountRestrict.Min)
 		}
-		if amount > int64(cf.Donation.AmountRestrict.Max) {
-			price.Amount = int64(cf.Donation.AmountRestrict.Max)
+		if amount > int64(config.AppConfig.Donation.AmountRestrict.Max) {
+			price.Amount = int64(config.AppConfig.Donation.AmountRestrict.Max)
 		}
 	}
 	payloadUuid := uuid.New().String()
 	payload := fmt.Sprintf("donate_%s", payloadUuid)
-	description := cf.Donation.Description
-	if cf.Donation.BonusEnabled {
+	description := config.AppConfig.Donation.Description
+	if config.AppConfig.Donation.BonusEnabled {
 		description += fmt.Sprintf(I.GetLocalisedString("commands.donate_desc_muliplier_enabled", langCode), C.DonationBonusMultiplier)
 	}
-	_, err = b.SendInvoice(ctx.EffectiveUser.Id, cf.Donation.Title, description, payload, "XTR", []gotgbot.LabeledPrice{price}, &gotgbot.SendInvoiceOpts{
+	_, err = b.SendInvoice(ctx.EffectiveUser.Id, config.AppConfig.Donation.Title, description, payload, "XTR", []gotgbot.LabeledPrice{price}, &gotgbot.SendInvoiceOpts{
 		ProtectContent: true,
 	})
 	if err != nil {

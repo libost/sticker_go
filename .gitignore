@@ -1,13 +1,20 @@
+# Ignore build artifacts and database files
 sticker_go
 sticker_go*
-cache/
-logs/
-.vscode/
-sticker_go.db
-config.yaml
+dist/
 *.exe
 *.old
-*.txt
-*.sh
+
+# Ignore local development files
+cache/
+logs/
 data/
-dist/
+
+# Ignore local configuration files
+config.yaml
+
+# Ignore local test files
+*.txt
+
+# Ignore editor and IDE files
+.vscode/

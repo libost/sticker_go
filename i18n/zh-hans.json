@@ -107,6 +107,7 @@
         "pack_progress": "🤖 正在处理贴纸包 %[1]s... \n进度(%[2]d/%[3]d)",
         "tgs_converting": "🤖 正在转换 TGS 贴纸...",
         "processing": "🤖 正在处理你的贴纸，请稍候...",
+        "conversion_in_progress": "🤖 你还有贴纸正在转换，请稍候。",
         "getpack_callback": "获取整套贴纸包",
         "success": "✅ 贴纸处理完成！"
     },

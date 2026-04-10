@@ -34,7 +34,7 @@ import (
 func main() {
 	// 捕获系统信号，在启动完成后执行优雅关闭流程
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(sigs)
 	args := os.Args
 	if len(args) > 1 {
@@ -44,7 +44,8 @@ func main() {
 			return
 		case "Dir", "-D", "-d":
 			if len(args) < 3 || strings.TrimSpace(args[2]) == "" {
-				L.Log("missing directory path for -d, usage: sticker_go -d <base_dir>", C.LogLevelFatal)
+				fmt.Printf("missing directory path for -d, usage: sticker_go -d <base_dir>\n")
+				return
 			}
 			C.SetBaseDir(args[2])
 			fmt.Printf("Base directory set to: %s\n", C.Dir)
@@ -56,32 +57,19 @@ func main() {
 			return
 		}
 	}
-	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	if _, err := os.Stat(C.ConfigFile); os.IsNotExist(err) {
-		L.Log("config.yaml not found, creating default config.yaml", C.LogLevelInfo)
+		fmt.Printf("config file not found at %s, creating default config file...\n", C.ConfigFile)
 		_ = utils.ConfigToYAML()
-		L.Log("config.yaml not found, a default config.yaml has been created. Please edit it and restart the bot.", C.LogLevelError)
+		fmt.Printf("default config file has been created at %s, please edit the config file and restart the bot.\n", C.ConfigFile)
 		return
 	}
-	cfg, err := config.Init()
-	if err != nil {
-		L.Log(fmt.Sprintf("failed to initialize config: %v", err), C.LogLevelFatal)
+	config.Init()
+	cfg := config.AppConfig
+	if err := configCheck(cfg); err != nil {
+		panic(fmt.Sprintf("config check failed: %v", err))
 	}
-	if cfg == nil {
-		L.Log("config initialization returned nil config", C.LogLevelFatal)
-	}
-	if cfg.Subscription.Enabled && strings.TrimSpace(cfg.Subscription.Channel) == "" {
-		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelFatal)
-	}
+	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	token := cfg.General.Token
-	switch "" {
-	case strings.TrimSpace(token):
-		L.Log("bot token is not set in config.yaml, please set your bot token to start the bot", C.LogLevelFatal)
-		return
-	case cfg.General.Adminkey:
-		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelFatal)
-		return
-	}
 	httpClient := httpClientWithProxy(cfg)
 	b, err := gotgbot.NewBot(token, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
@@ -107,12 +95,12 @@ func main() {
 	if cfg.Cache.Enabled {
 		go func() {
 			// 立即执行一次
-			cleanFiles(cacheDir, cfg, "cache")
+			cleanFiles(cacheDir, config.AppConfig, "cache")
 
 			// 之后每隔 1 小时检查一次
 			ticker := time.NewTicker(time.Duration(cfg.Cache.ExpireHours) * time.Hour)
 			for range ticker.C {
-				cleanFiles(cacheDir, cfg, "cache")
+				cleanFiles(cacheDir, config.AppConfig, "cache")
 			}
 		}()
 	} else {
@@ -136,11 +124,11 @@ func main() {
 	// 定时清理日志目录中的过期文件
 	go func() {
 		// 立即执行一次
-		cleanFiles(logDir, cfg, "log")
+		cleanFiles(logDir, config.AppConfig, "log")
 		// 之后每天检查一次
 		ticker := time.NewTicker(24 * time.Hour)
 		for range ticker.C {
-			cleanFiles(logDir, cfg, "log")
+			cleanFiles(logDir, config.AppConfig, "log")
 		}
 	}()
 	statsCleanup() // 启动统计数据清理任务
@@ -165,20 +153,32 @@ func main() {
 	communicateCheck(cfg, updater, b)
 	c := cron.New()
 	go func() {
-		sig := <-sigs
-		L.Log(fmt.Sprintf("received signal: %v, starting graceful shutdown...", sig), C.LogLevelInfo)
+		for sig := range sigs {
+			switch sig {
+			case syscall.SIGINT, syscall.SIGTERM:
+				L.Log(fmt.Sprintf("received signal: %v, starting graceful shutdown...", sig), C.LogLevelInfo)
 
-		cronCtx := c.Stop()
-		if cronCtx != nil {
-			<-cronCtx.Done()
+				cronCtx := c.Stop()
+				if cronCtx != nil {
+					<-cronCtx.Done()
+				}
+
+				if err := updater.Stop(); err != nil {
+					L.Log(fmt.Sprintf("graceful shutdown failed: %v", err), C.LogLevelError)
+					return
+				}
+
+				L.Log("graceful shutdown completed", C.LogLevelInfo)
+				return
+			case syscall.SIGHUP:
+				L.Log("received SIGHUP signal, reloading configuration...", C.LogLevelInfo)
+				config.Init()
+				if err := configCheck(config.AppConfig); err != nil {
+					L.Log(fmt.Sprintf("config check failed after reload: %v", err), C.LogLevelFatal)
+				}
+				L.Log("configuration reloaded successfully", C.LogLevelInfo)
+			}
 		}
-
-		if err := updater.Stop(); err != nil {
-			L.Log(fmt.Sprintf("graceful shutdown failed: %v", err), C.LogLevelError)
-			return
-		}
-
-		L.Log("graceful shutdown completed", C.LogLevelInfo)
 	}()
 
 	updater.Idle() // 阻塞直到进程被关闭
@@ -249,6 +249,7 @@ func httpClientWithProxy(cfg *config.Config) *http.Client {
 		case "socks5":
 			dialer, _ := proxy.SOCKS5("tcp", fmt.Sprintf("%s:%d", cfg.Proxy.Host, cfg.Proxy.Port), nil, proxy.Direct)
 			httpClient = &http.Client{
+				Timeout: time.Second * 10,
 				Transport: &http.Transport{
 					Dial: dialer.Dial,
 				},
@@ -257,6 +258,7 @@ func httpClientWithProxy(cfg *config.Config) *http.Client {
 		case "http":
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%d", cfg.Proxy.Host, cfg.Proxy.Port))
 			httpClient = &http.Client{
+				Timeout: time.Second * 10,
 				Transport: &http.Transport{
 					Proxy: http.ProxyURL(proxyUrl),
 				},
@@ -431,4 +433,24 @@ func statsCleanup() {
 	} else {
 		c.Start()
 	}
+}
+
+func configCheck(cfg *config.Config) error {
+	if cfg == nil {
+		L.Log("config initialization returned nil config", C.LogLevelError)
+		return fmt.Errorf("config initialization returned nil config")
+	}
+	if cfg.Subscription.Enabled && strings.TrimSpace(cfg.Subscription.Channel) == "" {
+		L.Log("subscription check is enabled but channel is not set in config", C.LogLevelError)
+		return fmt.Errorf("subscription check is enabled but channel is not set in config")
+	}
+	switch "" {
+	case strings.TrimSpace(cfg.General.Token):
+		L.Log("bot token is not set in config.yaml, please set your bot token to start the bot", C.LogLevelError)
+		return fmt.Errorf("bot token is not set in config.yaml")
+	case strings.TrimSpace(cfg.General.Adminkey):
+		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelError)
+		return fmt.Errorf("admin key is not set in config.yaml")
+	}
+	return nil
 }

@@ -53,20 +53,15 @@ func allPreCheckouts(pq *gotgbot.PreCheckoutQuery) bool {
 
 func preCheckoutHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	pq := ctx.PreCheckoutQuery
-	cf, err := config.Init()
-	if err != nil {
-		log.Log(fmt.Sprintf("User %d failed to load config during pre-checkout: %v", pq.From.Id, err), C.LogLevelError)
-		return err
-	}
-	if !cf.Donation.Enabled {
+	if !config.AppConfig.Donation.Enabled {
 		langCode := I.LangCodePrefer(pq.From.Id, pq.From.LanguageCode)
 		log.Log(fmt.Sprintf("User %d attempted to make a donation but the donation feature is disabled in config", pq.From.Id), C.LogLevelWarn)
-		_, err = b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
+		_, err := b.AnswerPreCheckoutQuery(pq.Id, false, &gotgbot.AnswerPreCheckoutQueryOpts{
 			ErrorMessage: I.GetLocalisedString("callback.donate_disabled", langCode),
 		})
 		return err
 	}
-	_, err = b.AnswerPreCheckoutQuery(pq.Id, true, nil)
+	_, err := b.AnswerPreCheckoutQuery(pq.Id, true, nil)
 	return err
 }
 
@@ -188,15 +183,10 @@ func removeZipFiles(zipPaths []string) {
 
 func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string, msgId int64) error {
 	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, msgId, ctx)
-	cf, cfErr := config.Init()
-	if cfErr != nil {
-		log.Log(fmt.Sprintf("User %d failed to load config in GetPack: %v", ctx.EffectiveUser.Id, cfErr), C.LogLevelError)
-		return cfErr
-	}
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {
 		msg := fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany", langCode), limitErr.PackLength, limitErr.Limit)
-		if limitErr.Limit == int(float64(cf.General.LimitPerPack)*C.DonationBonusMultiplier) {
+		if limitErr.Limit == int(float64(config.AppConfig.General.LimitPerPack)*C.DonationBonusMultiplier) {
 			msg += fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany_bonus", langCode), C.DonationBonusMultiplier)
 		}
 		_, _, _ = b.EditMessageText(msg, &gotgbot.EditMessageTextOpts{
@@ -205,6 +195,12 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		})
 		log.Log(fmt.Sprintf("User %d attempted to download a sticker pack with too many stickers", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		return err
+	} else if errors.Is(err, stickers.ErrUserConversionInProgress) {
+		_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.conversion_in_progress", langCode), &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: msgId,
+		})
+		return nil
 	}
 	if err != nil {
 		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.getpack_failed", langCode), &gotgbot.EditMessageTextOpts{
@@ -264,7 +260,7 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		return err
 	}
 	displayText := I.GetLocalisedString("callback.getpack_success", langCode)
-	if usergroup["user_group"] != "sponsor" && cf.Donation.Enabled {
+	if usergroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled {
 		n := rand.IntN(10) + 1
 		if n <= 2 { // 20% 的概率提示用户支持开发
 			displayText += I.GetLocalisedString("general.donate_reminder", langCode)

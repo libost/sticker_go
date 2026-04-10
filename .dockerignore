@@ -1,16 +1,26 @@
+# Ignore git related files
 .git
 .gitignore
 .github
+
+# Ignore build artifacts and database files
+sticker_go
+*.exe
+*.old
+dist
+
+# Ignore local development files
 cache
 logs
 data
 *.db
 *.log
 config.yaml
-sticker_go
-main
+*.sh
+*.ps1
+
+# Ignore documentation and editor files
 README.md
 README_zh.md
 docs
 .vscode
-*.sh

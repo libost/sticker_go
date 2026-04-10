@@ -17,30 +17,20 @@ import (
 var ErrUserNotSubscribed = errors.New("user is not subscribed")
 
 func SubscribeCheck(b *gotgbot.Bot, ctx *ext.Context, uid int64, langCode string) error {
-	cf, err := config.Init()
-	if err != nil {
-		log.Log(fmt.Sprintf("User %d failed to load config for subscription check: %v", uid, err), C.LogLevelError)
-		return err
-	}
-	if !cf.Subscription.Enabled {
+	if !config.AppConfig.Subscription.Enabled {
 		return nil // 订阅检查未启用，直接通过
 	}
-	if cf.Subscription.Channel == "" {
-		log.Log(fmt.Sprintf("User %d failed to check subscription: channel is empty", uid), C.LogLevelError)
-		return fmt.Errorf("channel is empty")
-	}
-
 	result, err := b.GetChatMember(0, uid, &gotgbot.GetChatMemberOpts{
 		RequestOpts: &gotgbot.RequestOpts{
 			OverrideParams: map[string]any{
-				"chat_id": cf.Subscription.Channel,
+				"chat_id": config.AppConfig.Subscription.Channel,
 			},
 		},
 	})
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to check subscription: %v", uid, err), C.LogLevelError)
-		channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
-		displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, cf.Subscription.Channel)
+		channel := strings.TrimPrefix(config.AppConfig.Subscription.Channel, "@")
+		displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_check_failed", langCode), channel, config.AppConfig.Subscription.Channel)
 		_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 			ParseMode: "HTML",
 		})
@@ -53,8 +43,8 @@ func SubscribeCheck(b *gotgbot.Bot, ctx *ext.Context, uid int64, langCode string
 	if member.Status != "left" && member.Status != "kicked" {
 		return nil // 用户已订阅
 	}
-	channel := strings.TrimPrefix(cf.Subscription.Channel, "@")
-	displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, cf.Subscription.Channel)
+	channel := strings.TrimPrefix(config.AppConfig.Subscription.Channel, "@")
+	displayText := fmt.Sprintf(I.GetLocalisedString("general.subscription_required", langCode), channel, config.AppConfig.Subscription.Channel)
 	_, replyErr := ctx.EffectiveMessage.Reply(b, displayText, &gotgbot.SendMessageOpts{
 		ParseMode: "HTML",
 	})
