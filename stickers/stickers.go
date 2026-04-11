@@ -63,6 +63,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !currentUsage["exists"].(bool) {
 		database.Init("create", ctx.EffectiveUser.Id, nil)
 		currentUsage["usage"] = float64(0)
+		currentUsage["last_cycle_starts_at"] = float64(time.Now().Unix())
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
