@@ -149,6 +149,10 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return nil
 	}
+	if config.AppConfig.Misc.SelfUse {
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("general.self_use_enabled", langCode), nil)
+		return err
+	}
 	if ctx.EffectiveChat.Type != "private" {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.start_desc_group", langCode), nil)
 		return err
@@ -202,6 +206,10 @@ func help(b *gotgbot.Bot, ctx *ext.Context) error {
 // usage 处理器函数
 func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	if config.AppConfig.Misc.SelfUse {
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.usage_self_use", langCode), nil)
+		return err
+	}
 	if ctx.EffectiveChat.Type != "private" && ctx.EffectiveChat.Type != "group" && ctx.EffectiveChat.Type != "supergroup" {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.groupchat_only", langCode), nil)
 		return err
@@ -426,6 +434,9 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err != nil {
 			return err
 		}
+		if config.AppConfig.Misc.SelfUse {
+			continue // 如果启用了自用模式，则不设置群聊命令
+		}
 		groupCommands := []gotgbot.BotCommand{
 			{Command: "start", Description: I.GetLocalisedString("commands.setcommands_desc_list[5]", code)},
 			{Command: "get", Description: I.GetLocalisedString("commands.setcommands_desc_list[6]", code)},
@@ -452,6 +463,9 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	displayText := fmt.Sprintf(I.GetLocalisedString("commands.about_desc", langCode), V.Version, V.BuildTime, V.GitCommit, V.Branch)
+	if config.AppConfig.Misc.SelfUse {
+		displayText = I.GetLocalisedString("general.self_use_enabled", langCode) + displayText
+	}
 	if os.Getenv("IN_DOCKER") == "true" {
 		displayText = I.GetLocalisedString("commands.about_desc_docker", langCode) + displayText
 	}
@@ -594,6 +608,9 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	if config.AppConfig.Misc.SelfUse {
+		return nil // 如果启用了自用模式，则不响应 /get 命令
+	}
 	if ctx.EffectiveChat.Type == "private" {
 		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_private", langCode), nil)
 		return err
@@ -673,7 +690,7 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func donate(b *gotgbot.Bot, ctx *ext.Context) error {
-	if ctx.EffectiveChat.Type != "private" {
+	if ctx.EffectiveChat.Type != "private" || config.AppConfig.Misc.SelfUse {
 		return nil // 仅允许在私聊中使用 /donate 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, err := checkAdmin(b, ctx, "donate")
@@ -733,6 +750,10 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 	if isAdmin != true {
 		return nil
 	}
+	if config.AppConfig.Misc.SelfUse {
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("general.self_use_enabled", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+		return err
+	}
 	donates, err := database.Init("get_all_donates", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -772,7 +793,7 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func refund(b *gotgbot.Bot, ctx *ext.Context) error {
-	if ctx.EffectiveChat.Type != "private" {
+	if ctx.EffectiveChat.Type != "private" || config.AppConfig.Misc.SelfUse {
 		return nil // 仅允许在私聊中使用 /refund 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "refund")

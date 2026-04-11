@@ -260,7 +260,7 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		return err
 	}
 	displayText := I.GetLocalisedString("callback.getpack_success", langCode)
-	if usergroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled {
+	if usergroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled && !config.AppConfig.Misc.SelfUse {
 		n := rand.IntN(10) + 1
 		if n <= 2 { // 20% 的概率提示用户支持开发
 			displayText += I.GetLocalisedString("general.donate_reminder", langCode)
@@ -291,6 +291,9 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	if err != nil {
 		return err
+	}
+	if config.AppConfig.Misc.SelfUse && ctx.EffectiveUser.Id != config.AppConfig.Misc.OwnerId {
+		return nil
 	}
 
 	_, _, err = b.EditMessageText(I.GetLocalisedString("callback.getpack_answer", langCode), &gotgbot.EditMessageTextOpts{

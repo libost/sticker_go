@@ -21,6 +21,7 @@
         "usage_desc_no_record": "😇 你還沒有使用記錄。",
         "usage_desc_multiply": " \n(捐贈獎勵: %[1]g 倍)",
         "usage_desc": "🗒️ 使用訊息:\n已使用: %[1]d次\n剩餘: %[2]d次\n下次刷新: %[3]s%[4]s",
+        "usage_self_use": "自用模式下無使用限制。",
         "about": "查看版本資訊",
         "about_desc": "版本: <code>%[1]s</code>\n建構時間: <code>%[2]s</code>\nGit 提交: <code>%[3]s</code>\n分支: <code>%[4]s</code>\n項目地址: https://github.com/libost/sticker_go",
         "about_desc_group": "😇 偵測到群組聊天環境，部分功能已停用\n\n",
@@ -120,7 +121,8 @@
         "sending_sticker": "😏 正在發送貼紙檔案，請稍候...",
         "donate_reminder": "\n <blockquote>如果你喜歡這個項目，歡迎使用指令 /donate 支援開發</blockquote>",
         "donate_reminder_outofquota": "\n\n💖 如果你喜歡這個項目，歡迎使用指令 /donate 支援開發，贊助用戶的使用限制將增加獎勵倍數！",
-        "donated": "\n\n🎉 作為贊助用戶，你的使用限制增加了獎勵倍數！感謝你的支持！"
+        "donated": "\n\n🎉 作為贊助用戶，你的使用限制增加了獎勵倍數！感謝你的支持！",
+        "self_use_enabled": "🤖 當前為自用模式，部分功能不可用。"
     }
 
 }

@@ -21,6 +21,7 @@
         "usage_desc_no_record": "😇 You have not used the bot yet.",
         "usage_desc_multiply": " \n(Donation bonus: %[1]g x)",
         "usage_desc": "🗒️ Usage Information:\nUsed: %[1]d times\nRemaining: %[2]d times\nNext refresh: %[3]s%[4]s",
+        "usage_self_use": "There is no usage limit in self-use mode.",
         "about": "View version information",
         "about_desc": "Version: <code>%[1]s</code>\nBuild time: <code>%[2]s</code>\nGit commit: <code>%[3]s</code>\nBranch: <code>%[4]s</code>\nProject URL: https://github.com/libost/sticker_go",
         "about_desc_group": "😇 Group environment detected, some features are disabled\n\n",
@@ -121,6 +122,7 @@
         "sending_sticker": "😏 Sending sticker...",
         "donate_reminder": "\n <blockquote>If you like this project, welcome to use the /donate command to support development</blockquote>",
         "donate_reminder_outofquota": "\n\n💖 If you like this project, welcome to use the /donate command to support development. Donor users will have their usage limits increased with a bonus multiplier!",
-        "donated": "\n\n🎉 As a donor user, your usage limit has been increased with a bonus multiplier! Thank you for your support!"
+        "donated": "\n\n🎉 As a donor user, your usage limit has been increased with a bonus multiplier! Thank you for your support!",
+        "self_use_enabled": "🤖 Currently in self-use mode, some features are unavailable."
     }
 }

@@ -57,7 +57,7 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 			packLimit = int(float64(packLimit) * C.DonationBonusMultiplier)
 		}
 	}
-	if packLength > packLimit {
+	if packLength > packLimit || !config.AppConfig.Misc.SelfUse {
 		return nil, &StickerPackLimitError{PackLength: packLength, Limit: packLimit}
 	}
 

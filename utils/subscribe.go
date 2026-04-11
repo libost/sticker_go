@@ -17,7 +17,7 @@ import (
 var ErrUserNotSubscribed = errors.New("user is not subscribed")
 
 func SubscribeCheck(b *gotgbot.Bot, ctx *ext.Context, uid int64, langCode string) error {
-	if !config.AppConfig.Subscription.Enabled {
+	if !config.AppConfig.Subscription.Enabled || config.AppConfig.Misc.SelfUse {
 		return nil // 订阅检查未启用，直接通过
 	}
 	result, err := b.GetChatMember(0, uid, &gotgbot.GetChatMemberOpts{

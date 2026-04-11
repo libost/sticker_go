@@ -175,6 +175,8 @@ donation:
     max: 10000 # 最大捐赠金额，单位为 Telegram Star
   # 受限于 Apple 和 Google 的政策，不涉及实物的交易不允许使用法币支付，因此暂时只接受 Telegram Star 捐赠
 ```
+### 自用模式
+详见[自用模式文档](/docs/self_use_zh.md)。
 ### 管理员功能
 管理员可以使用 `/admin` 命令来查看管理员功能列表，包括但不限于：
 - `/getstats`：查看 Bot 的使用统计信息。

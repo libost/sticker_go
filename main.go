@@ -113,6 +113,9 @@ func main() {
 		L.Log("prerequisites check failed, please fix the issues and restart the bot", C.LogLevelFatal)
 		return
 	}
+	if cfg.Misc.SelfUse {
+		L.Log("self_use mode is enabled, the bot will only respond to messages from the bot owner", C.LogLevelWarn)
+	}
 	logDir := C.LogDir
 	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
 	if os.IsNotExist(err) || (err == nil && !logInfo.IsDir()) {

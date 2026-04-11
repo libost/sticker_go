@@ -62,7 +62,8 @@ type Config struct {
 	} `yaml:"donation,omitempty"`
 	Misc struct {
 		Timezone string `yaml:"timezone" default:"Asia/Shanghai"`
-		//SelfUse  bool   `yaml:"self_use" default:"false"`
+		SelfUse  bool   `yaml:"self_use" default:"false"`
+		OwnerId  int64  `yaml:"owner_id,omitempty"`
 	} `yaml:"misc,omitempty"`
 }
 
@@ -95,6 +96,10 @@ func loadConfig(configPath string) (*Config, error) {
 	}
 	if cf.Log.ExpireDays <= 0 {
 		cf.Log.ExpireDays = 7
+	}
+	if cf.Misc.SelfUse {
+		cf.Subscription.Enabled = false // 自用模式下强制禁用订阅检查
+		cf.Donation.Enabled = false     // 自用模式下强制禁用捐赠功能
 	}
 	return cf, nil
 }

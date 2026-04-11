@@ -56,6 +56,9 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type != "private" {
 		return nil // 仅处理私聊中的贴纸消息，忽略群聊和频道中的贴纸
 	}
+	if config.AppConfig.Misc.SelfUse && ctx.EffectiveUser.Id != config.AppConfig.Misc.OwnerId {
+		return nil
+	}
 	currentUsage, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
 	if err != nil {
 		return err
@@ -77,7 +80,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userGroup["user_group"] == "sponsor" && config.AppConfig.Donation.BonusEnabled {
 		limit = int(float64(config.AppConfig.General.Limit) * C.DonationBonusMultiplier) // 赞助用户的使用限制增加奖励倍数
 	}
-	if int(currentUsage["usage"].(float64)) >= limit && (int(currentUsage["last_cycle_starts_at"].(float64))+24*3600) >= int(time.Now().Unix()) {
+	if int(currentUsage["usage"].(float64)) >= limit && (int(currentUsage["last_cycle_starts_at"].(float64))+24*3600) >= int(time.Now().Unix()) && !config.AppConfig.Misc.SelfUse {
 		displayText := fmt.Sprintf(I.GetLocalisedString("general.out_of_quota", langCode), limit)
 		if userGroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled && config.AppConfig.Donation.BonusEnabled {
 			displayText += I.GetLocalisedString("general.donate_reminder_outofquota", langCode)
@@ -152,7 +155,7 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	displayText := I.GetLocalisedString("stickers.success", langCode)
-	if userGroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled {
+	if userGroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled && !config.AppConfig.Misc.SelfUse {
 		n := rand.IntN(10) + 1
 		if n <= 2 { // 20% 的概率提示用户支持开发
 			displayText += I.GetLocalisedString("general.donate_reminder", langCode)
