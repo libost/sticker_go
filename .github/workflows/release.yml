@@ -1,4 +1,4 @@
-name: Auto Release
+name: Stable Release
 
 on:
   push:
@@ -34,3 +34,29 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           FEEDBACK: https://t.me/bangdream_feedback_bot
+  sync-branches:
+    name: Sync Branches
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Sync branches
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin main dev
+          git checkout dev
+
+          # Prefer fast-forward; if not possible, create a merge commit
+          if git merge --ff-only origin/main; then
+            echo "Fast-forwarded dev to main"
+          else
+            git merge --no-ff origin/main -m "chore: sync main into dev after stable release"
+          fi
+
+          git push origin dev
