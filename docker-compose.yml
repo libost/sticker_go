@@ -2,9 +2,7 @@ version: "3.8"
 
 services:
   sticker_go:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/libost/sticker_go:latest
     container_name: sticker_go
     restart: unless-stopped
     environment:
