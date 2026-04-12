@@ -1,6 +1,7 @@
 package constants
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"time"
@@ -136,3 +137,7 @@ func CurrentTime(timezone string) (string, error) {
 	}
 	return time.Now().In(loc).Format("2006-01-02 15:04:05"), err
 }
+
+var (
+	ErrOutofQuota = errors.New("out of quota")
+)
