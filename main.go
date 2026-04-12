@@ -340,7 +340,7 @@ func buildWebhookOptions(cfg *config.Config) (ext.WebhookOpts, *gotgbot.SetWebho
 		DropPendingUpdates: true,
 	}
 
-	if cfg.Webhook.NginxEnabled {
+	if cfg.Webhook.NginxEnabled && os.Getenv("IN_DOCKER") != "true" {
 		webhookOpts.ListenAddr = fmt.Sprintf("127.0.0.1:%d", cfg.Webhook.Port)
 		return webhookOpts, setWebhookOpts
 	}
