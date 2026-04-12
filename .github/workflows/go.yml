@@ -75,6 +75,13 @@ jobs:
           git push -f origin "${DEV_TAG}"
           echo "DEV_TAG=${DEV_TAG}" >> $GITHUB_ENV
 
+      - name: Extract trigger commit message
+        id: extract_commit
+        run: |
+           echo "TRIGGER_COMMIT_MSG<<EOF" >> $GITHUB_OUTPUT
+           echo "${{ github.event.head_commit.message }}" >> $GITHUB_OUTPUT
+           echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -83,6 +90,7 @@ jobs:
           args: release --clean
         env:
           RELEASE_CHANNEL: dev
+          COMMIT_MESSAGE: ${{ steps.extract_commit.outputs.TRIGGER_COMMIT_MSG }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           FEEDBACK: https://t.me/bangdream_feedback_bot
