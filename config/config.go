@@ -62,7 +62,6 @@ type Config struct {
 	} `yaml:"donation,omitempty"`
 	Misc struct {
 		Timezone string `yaml:"timezone" default:"Asia/Shanghai"`
-		//SelfUse  bool   `yaml:"self_use" default:"false"`
 	} `yaml:"misc,omitempty"`
 }
 

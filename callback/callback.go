@@ -182,6 +182,44 @@ func removeZipFiles(zipPaths []string) {
 }
 
 func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string, msgId int64) error {
+	currentUsage, err := database.Init("usage", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if !currentUsage["exists"].(bool) {
+		database.Init("create", ctx.EffectiveUser.Id, nil)
+		currentUsage["usage"] = float64(0)
+		currentUsage["last_cycle_starts_at"] = float64(time.Now().Unix())
+	}
+	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
+	if subErr != nil {
+		return nil // 用户未订阅，已在 SubscribeCheck 中发送提示消息，直接返回不继续处理
+	}
+	limit := config.AppConfig.General.Limit
+	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
+	if err != nil {
+		return err
+	}
+	if userGroup["user_group"] == "sponsor" && config.AppConfig.Donation.BonusEnabled {
+		limit = int(float64(config.AppConfig.General.Limit) * C.DonationBonusMultiplier) // 赞助用户的使用限制增加奖励倍数
+	}
+	if int(currentUsage["usage"].(float64)) >= limit && (int(currentUsage["last_cycle_starts_at"].(float64))+24*3600) >= int(time.Now().Unix()) {
+		displayText := fmt.Sprintf(I.GetLocalisedString("general.out_of_quota", langCode), limit)
+		if userGroup["user_group"] != "sponsor" && config.AppConfig.Donation.Enabled && config.AppConfig.Donation.BonusEnabled {
+			displayText += I.GetLocalisedString("general.donate_reminder_outofquota", langCode)
+		}
+		if userGroup["user_group"] == "sponsor" && config.AppConfig.Donation.BonusEnabled {
+			displayText += I.GetLocalisedString("general.donated", langCode)
+		}
+		_, _, _ = b.EditMessageText(displayText, &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: msgId,
+		})
+		err := C.ErrOutofQuota
+		return err
+	} else if (int(currentUsage["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
+		database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
+	}
 	zipPaths, err := stickers.GetStickerPack(b, packName, ctx.EffectiveUser.Id, msgId, ctx)
 	var limitErr *stickers.StickerPackLimitError
 	if errors.As(err, &limitErr) {

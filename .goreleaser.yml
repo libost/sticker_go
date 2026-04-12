@@ -120,6 +120,8 @@ announce:
 
       {{ if eq .Env.RELEASE_CHANNEL "dev" }}🚀 {{ .ProjectName | mdv2escape }} 新测试版发行: {{ .ShortCommit | mdv2escape }}{{ else }}🎉 {{ .ProjectName | mdv2escape }} 新版本发行: {{ .Tag | mdv2escape }}{{ end }}  
 
+      {{ if eq .Env.RELEASE_CHANNEL "dev" }}`{{ .ShortCommit | mdv2escape }}`: {{ .Env.COMMIT_MESSAGE | mdv2escape }}{{ end }}
+
       [有问题点我反馈]({{ .Env.FEEDBACK | mdv2escape }}) 
 
       [更新日志]({{ .ReleaseURL }})

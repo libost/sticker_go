@@ -143,6 +143,11 @@ func start(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		err = callback.GetPack(b, ctx, param, langCode, msg.GetMessageId())
 		if err != nil {
+			if errors.Is(err, S.ErrUserConversionInProgress) {
+				return nil // 已在 callback.GetPack 中回复过转换中的消息，这里直接返回不再重复回复
+			} else if errors.Is(err, C.ErrOutofQuota) {
+				return nil // 已在 callback.GetPack 中回复过超出配额的消息，这里直接返回不再重复回复
+			}
 			log.Log(fmt.Sprintf("User %d failed to get sticker pack with parameter %s: %v", ctx.EffectiveUser.Id, param, err), C.LogLevelError)
 			_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_failed", langCode), nil)
 			return err
