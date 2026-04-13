@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -55,4 +58,33 @@ func ConfigToYAML() error {
 		return fmt.Errorf("failed to write config to file: %v", err)
 	}
 	return nil
+}
+
+func DockerHealthCheckEP() (*http.Server, <-chan error, error) {
+	// Create a simple HTTP server that listens on port 3417 and responds with "OK" to health check requests.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	srv := &http.Server{
+		Addr:    ":3417",
+		Handler: mux,
+	}
+
+	ln, err := net.Listen("tcp", srv.Addr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to listen on %s: %w", srv.Addr, err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		if serveErr := srv.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			errCh <- serveErr
+		}
+	}()
+
+	return srv, errCh, nil
 }
