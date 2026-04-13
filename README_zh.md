@@ -185,5 +185,9 @@ donation:
 - `/shutdown`：关闭 Bot。  
 
 管理员功能需要在 `config.yaml` 中设置管理员密钥，并且只有使用正确的管理员密钥的用户才能访问这些功能。 请务必保护好管理员密钥，避免泄露给其他人。
+### 升级功能
+Bot 包含一个升级功能，允许管理员检查新版本并直接从 Telegram 升级 Bot。当管理员使用 `/upgrade` 命令时，Bot 将检查 GitHub 仓库中的最新发布版本。如果有新版本可用，Bot 将提示管理员确认升级。确认后，Bot 将下载最新发布的二进制文件，替换当前的可执行文件，并重启自身以应用更新。这个功能提供了一种方便的方式来保持 Bot 的更新，而无需手动下载和部署更新。
+## 致谢
+本项目在极大程度上受到了 [rroy233/StickerDownloader](https://github.com/rroy233/StickerDownloader) 的启发。
 ## 许可证
 本项目采用 MIT 许可证，详情请参阅 [LICENSE](LICENSE) 文件。

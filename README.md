@@ -184,5 +184,7 @@ Administrators can use the `/admin` command to view the list of administrator fe
 Administrator features require setting an administrator key in `config.yaml`, and only users with the correct administrator key can access these features. Please ensure to protect the administrator key and avoid leaking it to others.
 ### Upgrade Feature
 The Bot includes an upgrade feature that allows administrators to check for new releases and upgrade the Bot directly from Telegram. When an administrator uses the `/upgrade` command, the Bot will check the GitHub repository for the latest release. If a new version is available, the Bot will prompt the administrator to confirm the upgrade. Upon confirmation, the Bot will download the latest release binary, replace the current executable, and restart itself to apply the update. This feature provides a convenient way to keep the Bot up-to-date without needing to manually download and deploy updates.
+## Acknowledgements
+This project is heavily inspired by [rroy233/StickerDownloader](https://github.com/rroy233/StickerDownloader).
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
