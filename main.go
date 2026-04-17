@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -152,11 +154,20 @@ func main() {
 	// 启动 Bot
 	communicateCheck(cfg, updater, b)
 	c := cron.New()
+	var healthSrv *http.Server
 	go func() {
 		for sig := range sigs {
 			switch sig {
 			case syscall.SIGINT, syscall.SIGTERM:
 				L.Log(fmt.Sprintf("received signal: %v, starting graceful shutdown...", sig), C.LogLevelInfo)
+
+				if healthSrv != nil {
+					shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					if err := healthSrv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+						L.Log(fmt.Sprintf("failed to shutdown Docker health check endpoint: %v", err), C.LogLevelError)
+					}
+					cancel()
+				}
 
 				cronCtx := c.Stop()
 				if cronCtx != nil {
@@ -180,7 +191,21 @@ func main() {
 			}
 		}
 	}()
-
+	// 启动 Docker 健康检查端点
+	if os.Getenv("IN_DOCKER") == "true" {
+		srv, healthErrCh, err := utils.DockerHealthCheckEP()
+		if err != nil {
+			L.Log(fmt.Sprintf("Docker health check endpoint failed to start: %v", err), C.LogLevelError)
+		} else {
+			healthSrv = srv
+			L.Log("Docker health check endpoint started on :3417/health", C.LogLevelInfo)
+			go func() {
+				if runErr, ok := <-healthErrCh; ok && runErr != nil {
+					L.Log(fmt.Sprintf("Docker health check endpoint failed: %v", runErr), C.LogLevelError)
+				}
+			}()
+		}
+	}
 	updater.Idle() // 阻塞直到进程被关闭
 }
 

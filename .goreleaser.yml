@@ -113,7 +113,7 @@ changelog:
 
 announce:
   telegram:
-    enabled: true
+    enabled: false
     chat_id: "@BangDream0114"
     message_template: |
       \#{{ .ProjectName | mdv2escape }} {{ if eq .Env.RELEASE_CHANNEL "dev" }}测试版{{ else }}新版本{{ end }}信息    
