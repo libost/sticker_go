@@ -63,6 +63,10 @@ type Config struct {
 	Misc struct {
 		Timezone string `yaml:"timezone" default:"Asia/Shanghai"`
 	} `yaml:"misc,omitempty"`
+	Advanced struct {
+		FfmpegPath   string `yaml:"ffmpeg_path,omitempty"`
+		FfmpegFilter string `yaml:"ffmpeg_filter,omitempty"`
+	} `yaml:"advanced,omitempty"`
 }
 
 var AppConfig *Config

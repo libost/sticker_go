@@ -60,7 +60,7 @@ func ConfigToYAML() error {
 	return nil
 }
 
-func DockerHealthCheckEP() (*http.Server, <-chan error, error) {
+func HealthCheckEP() (*http.Server, <-chan error, error) {
 	// Create a simple HTTP server that listens on port 3417 and responds with "OK" to health check requests.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
