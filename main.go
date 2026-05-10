@@ -164,7 +164,7 @@ func main() {
 				if healthSrv != nil {
 					shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					if err := healthSrv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
-						L.Log(fmt.Sprintf("failed to shutdown Docker health check endpoint: %v", err), C.LogLevelError)
+						L.Log(fmt.Sprintf("failed to shutdown health check endpoint: %v", err), C.LogLevelError)
 					}
 					cancel()
 				}
@@ -187,25 +187,27 @@ func main() {
 				if err := configCheck(config.AppConfig); err != nil {
 					L.Log(fmt.Sprintf("config check failed after reload: %v", err), C.LogLevelFatal)
 				}
+				if !preqrequisitesCheck(config.AppConfig) {
+					L.Log("prerequisites check failed after config reload, please fix the issues and restart the bot", C.LogLevelFatal)
+				}
 				L.Log("configuration reloaded successfully", C.LogLevelInfo)
 			}
 		}
 	}()
-	// 启动 Docker 健康检查端点
-	if os.Getenv("IN_DOCKER") == "true" {
-		srv, healthErrCh, err := utils.DockerHealthCheckEP()
-		if err != nil {
-			L.Log(fmt.Sprintf("Docker health check endpoint failed to start: %v", err), C.LogLevelError)
-		} else {
-			healthSrv = srv
-			L.Log("Docker health check endpoint started on :3417/health", C.LogLevelInfo)
-			go func() {
-				if runErr, ok := <-healthErrCh; ok && runErr != nil {
-					L.Log(fmt.Sprintf("Docker health check endpoint failed: %v", runErr), C.LogLevelError)
-				}
-			}()
-		}
+	// 启动健康检查端点
+	srv, healthErrCh, err := utils.HealthCheckEP()
+	if err != nil {
+		L.Log(fmt.Sprintf("health check endpoint failed to start: %v", err), C.LogLevelError)
+	} else {
+		healthSrv = srv
+		L.Log("health check endpoint started on :3417/health", C.LogLevelInfo)
+		go func() {
+			if runErr, ok := <-healthErrCh; ok && runErr != nil {
+				L.Log(fmt.Sprintf("health check endpoint failed: %v", runErr), C.LogLevelError)
+			}
+		}()
 	}
+
 	updater.Idle() // 阻塞直到进程被关闭
 }
 
@@ -297,7 +299,11 @@ func httpClientWithProxy(cfg *config.Config) *http.Client {
 }
 
 func preqrequisitesCheck(cfg *config.Config) bool {
-	cmd := exec.Command("ffmpeg", "-version")
+	ffmpegPath := cfg.Advanced.FfmpegPath
+	if ffmpegPath == "" {
+		ffmpegPath = "ffmpeg"
+	}
+	cmd := exec.Command(ffmpegPath, "-version")
 	err := cmd.Run()
 	if err != nil {
 		L.Log(fmt.Sprintf("ffmpeg is not installed or not in PATH: %v", err), C.LogLevelError)

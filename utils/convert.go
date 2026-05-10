@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/libost/sticker_go/config"
 	"golang.org/x/image/webp"
 )
 
@@ -38,9 +39,16 @@ func DecodeWebPToPNG(inputPath string) (filePath string, err error) {
 }
 
 func DecodeWebMToGIF(inputPath string) (filePath string, err error) {
-	filter := "fps=30,scale=512:-1:flags=lanczos,split[s0][s1];[s0]palettegen=reserve_transparent=on:transparency_color=ffffff[p];[s1][p]paletteuse=alpha_threshold=128"
+	filter := config.AppConfig.Advanced.FfmpegFilter
+	if filter == "" {
+		filter = "fps=30,scale=512:-1:flags=lanczos,split[s0][s1];[s0]palettegen=reserve_transparent=on:transparency_color=ffffff[p];[s1][p]paletteuse=alpha_threshold=128"
+	}
+	ffmpegPath := config.AppConfig.Advanced.FfmpegPath
+	if ffmpegPath == "" {
+		ffmpegPath = "ffmpeg"
+	}
 	outputPath := strings.TrimSuffix(inputPath, ".webm") + ".gif"
-	cmd := exec.Command("ffmpeg", "-i", inputPath, "-vf", filter, outputPath)
+	cmd := exec.Command(ffmpegPath, "-i", inputPath, "-vf", filter, outputPath)
 	err = cmd.Run()
 	if err != nil {
 		return "", err
