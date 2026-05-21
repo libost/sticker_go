@@ -22,6 +22,9 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 }
 
 func textPrefixHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil
+	}
 	text := ctx.EffectiveMessage.Text
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	switch true {
