@@ -18,3 +18,10 @@ config.yaml
 
 # Ignore editor and IDE files
 .vscode/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore Heap Dumps
+*.pprof
