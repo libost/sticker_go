@@ -20,6 +20,7 @@ import (
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
 	"github.com/libost/sticker_go/database"
+	"github.com/libost/sticker_go/dm"
 	L "github.com/libost/sticker_go/log"
 	"github.com/libost/sticker_go/stickers"
 	"github.com/libost/sticker_go/utils"
@@ -150,6 +151,7 @@ func main() {
 	commands.AddHandlers(dispatcher)
 	stickers.AddHandlers(dispatcher)
 	callback.AddHandlers(dispatcher)
+	dm.AddHandlers(dispatcher)
 
 	// 启动 Bot
 	communicateCheck(cfg, updater, b)

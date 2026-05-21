@@ -121,6 +121,9 @@
         "donate_reminder": "\n <blockquote>如果你喜歡這個項目，歡迎使用指令 /donate 支援開發</blockquote>",
         "donate_reminder_outofquota": "\n\n💖 如果你喜歡這個項目，歡迎使用指令 /donate 支援開發，贊助用戶的使用限制將增加獎勵倍數！",
         "donated": "\n\n🎉 作為贊助用戶，你的使用限制增加了獎勵倍數！感謝你的支持！"
+    },
+    "dm": {
+        "pack_not_found": "😕 貼紙包未找到，請檢查你發送的分享連結。"
     }
 
 }

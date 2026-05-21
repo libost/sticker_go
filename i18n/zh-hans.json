@@ -122,6 +122,9 @@
         "donate_reminder": "\n <blockquote>如果你喜欢这个项目，欢迎使用命令 /donate 支持开发</blockquote>",
         "donate_reminder_outofquota": "\n\n💖 如果你喜欢这个项目，欢迎使用命令 /donate 支持开发，赞助用户的使用限制将增加奖励倍数！",
         "donated": "\n\n🎉 作为赞助用户，你的使用限制增加了奖励倍数！感谢你的支持！"
+    },
+    "dm": {
+        "pack_not_found": "😕 贴纸包未找到，请检查你发送的分享链接。"
     }
 
 }
