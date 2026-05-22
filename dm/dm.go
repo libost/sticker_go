@@ -29,25 +29,30 @@ func textPrefixHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	switch true {
 	case strings.HasPrefix(text, "https://t.me/addstickers/"):
-		log.Log(fmt.Sprintf("User %d triggered text handler with text: %s", ctx.EffectiveUser.Id, text), C.LogLevelInfo)
-		subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
-		if subErr != nil {
-			return nil
-		}
-		packName := strings.TrimPrefix(text, "https://t.me/addstickers/")
-		msg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_processing", langCode), nil)
-		if err != nil {
-			return err
-		}
-		err = callback.GetPack(b, ctx, packName, langCode, msg.GetMessageId())
-		var stickerPackLimitErr *stickers.StickerPackLimitError
-		if !errors.Is(err, stickerPackLimitErr) && !errors.Is(err, C.ErrOutofQuota) {
-			_, _, _ = b.EditMessageText(I.GetLocalisedString("dm.pack_not_found", langCode), &gotgbot.EditMessageTextOpts{
-				ChatId:    ctx.EffectiveChat.Id,
-				MessageId: msg.GetMessageId(),
-			},
-			)
-		}
+		return stickerLink(b, ctx, text, langCode)
+	}
+	return nil
+}
+
+func stickerLink(b *gotgbot.Bot, ctx *ext.Context, text string, langCode string) error {
+	log.Log(fmt.Sprintf("User %d triggered text handler with text: %s", ctx.EffectiveUser.Id, text), C.LogLevelInfo)
+	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
+	if subErr != nil {
+		return nil
+	}
+	packName := strings.TrimPrefix(text, "https://t.me/addstickers/")
+	msg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_processing", langCode), nil)
+	if err != nil {
+		return err
+	}
+	err = callback.GetPack(b, ctx, packName, langCode, msg.GetMessageId())
+	var stickerPackLimitErr *stickers.StickerPackLimitError
+	if err != nil && !errors.Is(err, stickerPackLimitErr) && !errors.Is(err, C.ErrOutofQuota) {
+		_, _, _ = b.EditMessageText(I.GetLocalisedString("dm.pack_not_found", langCode), &gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: msg.GetMessageId(),
+		},
+		)
 	}
 	return nil
 }
