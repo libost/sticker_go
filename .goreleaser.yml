@@ -4,6 +4,7 @@ before:
   hooks:
     - go mod download
     - go vet ./...
+    - go test -v ./...
 
 builds:
   - id: linux
