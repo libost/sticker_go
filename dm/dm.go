@@ -28,7 +28,7 @@ func textPrefixHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	text := ctx.EffectiveMessage.Text
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	switch true {
-	case strings.HasPrefix(text, "https://t.me/addstickers/"):
+	case strings.HasPrefix(text, "https://t.me/addstickers/"), strings.HasPrefix(text, "t.me/addstickers/"):
 		return stickerLink(b, ctx, text, langCode)
 	}
 	return nil
@@ -39,6 +39,9 @@ func stickerLink(b *gotgbot.Bot, ctx *ext.Context, text string, langCode string)
 	subErr := utils.SubscribeCheck(b, ctx, ctx.EffectiveUser.Id, langCode)
 	if subErr != nil {
 		return nil
+	}
+	if strings.HasPrefix(text, "t.me/addstickers/") {
+		text = "https://" + text
 	}
 	packName := strings.TrimPrefix(text, "https://t.me/addstickers/")
 	msg, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.get_desc_processing", langCode), nil)
