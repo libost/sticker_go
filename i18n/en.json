@@ -122,5 +122,8 @@
         "donate_reminder": "\n <blockquote>If you like this project, welcome to use the /donate command to support development</blockquote>",
         "donate_reminder_outofquota": "\n\n💖 If you like this project, welcome to use the /donate command to support development. Donor users will have their usage limits increased with a bonus multiplier!",
         "donated": "\n\n🎉 As a donor user, your usage limit has been increased with a bonus multiplier! Thank you for your support!"
+    },
+    "dm": {
+        "pack_not_found": "😕 Sticker pack not found, please check the share link you sent."
     }
 }

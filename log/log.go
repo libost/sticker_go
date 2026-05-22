@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
+	"time"
 
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
@@ -35,9 +37,6 @@ func Log(message string, level C.LogLevel) {
 		}
 	case "FATAL":
 		systemdLevel = "<2>"
-		if level.Number < C.LogLevelFatal.Number {
-			return
-		}
 	}
 	logDir := C.LogDir
 	logInfo, err := os.Stat(logDir) // 检查日志目录是否存在
@@ -61,6 +60,13 @@ func Log(message string, level C.LogLevel) {
 	logToFile(preMessage)
 	os.Stdout.WriteString(logMessage)
 	if level == C.LogLevelFatal {
+		dumpFile, err := os.Create(fmt.Sprintf("pprof_%d.pprof", time.Now().Unix()))
+		if err != nil {
+			log.Printf("Failed to create pprof dump file: %v", err)
+		}
+		defer dumpFile.Close()
+		pprof.WriteHeapProfile(dumpFile)
+		log.Printf("Software Crashed. Heap profile written to %s. Check working directory for the file.", dumpFile.Name())
 		os.Exit(1)
 	}
 }
