@@ -290,7 +290,7 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 		ctx := context.Background()
 		conn, err := dbus.NewSystemConnectionContext(ctx)
 		if err != nil {
-			panic(err)
+			log.Log(fmt.Sprintf("Failed to connect to systemd dbus: %v", err), C.LogLevelFatal)
 		}
 		defer conn.Close()
 		prop, err := conn.GetServicePropertyContext(ctx, "sticker_go.service", "MemoryCurrent")
