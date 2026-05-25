@@ -17,6 +17,7 @@ on:
       - ".dockerignore"
       - "Dockerfile"
       - "docker-compose.yml"
+      - ".gitattributes"
   pull_request:
     branches: [ "dev" ]
     paths-ignore:
@@ -30,7 +31,7 @@ on:
       - ".dockerignore"
       - "Dockerfile"
       - "docker-compose.yml"
-
+      - ".gitattributes"
 permissions:
   contents: write
 

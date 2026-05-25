@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +29,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/coreos/go-systemd/v22/dbus"
 	"github.com/google/uuid"
 )
 
@@ -283,15 +285,31 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 	samples[0].Name = "/memory/classes/heap/objects:bytes"
 	metrics.Read(samples)
 	var memoryBytes uint64
-	switch samples[0].Value.Kind() {
-	case metrics.KindUint64:
-		memoryBytes = samples[0].Value.Uint64()
-	case metrics.KindFloat64:
-		memoryBytes = uint64(samples[0].Value.Float64())
-	default:
-		var mem runtime.MemStats
-		runtime.ReadMemStats(&mem)
-		memoryBytes = mem.Alloc
+	_, exists := os.LookupEnv("INVOCATION_ID")
+	if exists {
+		ctx := context.Background()
+		conn, err := dbus.NewSystemConnectionContext(ctx)
+		if err != nil {
+			log.Log(fmt.Sprintf("Failed to connect to systemd dbus: %v", err), C.LogLevelFatal)
+		}
+		defer conn.Close()
+		prop, err := conn.GetServicePropertyContext(ctx, "sticker_go.service", "MemoryCurrent")
+		if err != nil {
+			log.Log(fmt.Sprintf("Failed to get memory usage from systemd cgroup: %v", err), C.LogLevelError)
+			memoryBytes = 18446744073709551615 // 2^64-1, 表示未知内存使用量
+		}
+		memoryBytes = prop.Value.Value().(uint64)
+	} else {
+		switch samples[0].Value.Kind() {
+		case metrics.KindUint64:
+			memoryBytes = samples[0].Value.Uint64()
+		case metrics.KindFloat64:
+			memoryBytes = uint64(samples[0].Value.Float64())
+		default:
+			var mem runtime.MemStats
+			runtime.ReadMemStats(&mem)
+			memoryBytes = mem.Alloc
+		}
 	}
 	info := fmt.Sprintf(I.GetLocalisedString("commands.getstats_details", langCode),
 		int(stats["stats"].(map[string]any)["total_users"].(float64)),
