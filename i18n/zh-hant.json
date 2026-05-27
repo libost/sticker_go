@@ -79,7 +79,14 @@
         "query_desc_invalid_id": "🔍 提供的用戶ID無效。",
         "query_desc_query_failed": "🔍 查詢用戶使用記錄失敗。",
         "query_desc_no_user": "🔍 未找到指定用戶。",
-        "query_desc_success": "🔍 用戶 %[1]d 的使用記錄：\n當前使用次數: %[2]d\n總使用次數: %[3]d"
+        "query_desc_success": "🔍 用戶 %[1]d 的使用記錄：\n當前使用次數: %[2]d\n總使用次數: %[3]d",
+        "grace_desc_gen_failed": "🤔 生成寬限密鑰失敗。",
+        "grace_desc_gen_success": "✅ 寬限密鑰生成成功！\n密鑰: <code>%[1]s</code>\n一小時內有效。",
+        "grace_desc_no_key": "🤔 請提供寬限密鑰。\n用法： /grace <密鑰>",
+        "grace_desc_invalid_key": "🤔 提供的寬限密鑰無效。",
+        "grace_desc_expired_key": "🥺 提供的寬限密鑰已過期。",
+        "grace_desc_use_success": "✅ 寬限密鑰使用成功！",
+        "grace_desc_use_failed": "🤔 使用寬限密鑰失敗。"
     },
     "callback":{
         "donate_disabled": "😕 捐贈功能已關閉，暫時無法接受捐贈。",

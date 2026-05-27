@@ -80,7 +80,14 @@
         "query_desc_invalid_id": "🔍 The provided user ID is invalid.",
         "query_desc_query_failed": "🔍 Failed to query user usage records.",
         "query_desc_no_user": "🔍 The specified user was not found.",
-        "query_desc_success": "🔍 User %[1]d's usage records:\nCurrent usage: %[2]d\nTotal usage: %[3]d"
+        "query_desc_success": "🔍 User %[1]d's usage records:\nCurrent usage: %[2]d\nTotal usage: %[3]d",
+        "grace_desc_gen_failed": "🤔 Failed to generate grace key.",
+        "grace_desc_gen_success": "✅ Grace key generated successfully!\nKey: <code>%[1]s</code>\nValid for one hour.",
+        "grace_desc_no_key": "🤔 Please provide a grace key.\nUsage: /grace <key>",
+        "grace_desc_invalid_key": "🤔 The provided grace key is invalid.",
+        "grace_desc_expired_key": "🥺 The provided grace key has expired.",
+        "grace_desc_use_success": "✅ Grace key used successfully!",
+        "grace_desc_use_failed": "🤔 Failed to use grace key."
     },
     "callback":{
         "donate_disabled": "😕 Donation is currently disabled, temporarily unable to accept donations.",

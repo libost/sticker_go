@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	C "github.com/libost/sticker_go/constants"
 
 	_ "modernc.org/sqlite"
@@ -567,6 +568,54 @@ func queryUserUsage(id int64, conn *sql.DB) (map[string]any, error) {
 	return data, nil
 }
 
+func genGraceKey(id int64, conn *sql.DB) (map[string]any, error) {
+	// Implementation for generating grace key
+	uuid := uuid.New().String()
+	_, err := conn.Exec(
+		"INSERT INTO GRACE_KEY (operator, uuid, generated_at) VALUES (?, ?, unixepoch())",
+		id,
+		uuid,
+	)
+	return map[string]any{"grace_key": uuid}, err
+}
+
+func useGraceKey(id int64, conn *sql.DB, other map[string]any) (map[string]any, error) {
+	// Implementation for using grace key
+	graceKey, ok := other["grace_key"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing grace_key")
+	}
+	var expiredAt int64
+	err := conn.QueryRow(
+		"SELECT expires_at FROM GRACE_KEY WHERE uuid = ?",
+		graceKey,
+	).Scan(&expiredAt)
+	if err == sql.ErrNoRows {
+		return nil, C.ErrInvalidGraceKey
+	}
+	if err != nil {
+		return nil, err
+	}
+	if time.Now().Unix() > expiredAt {
+		return nil, C.ErrGraceKeyExpired
+	}
+	_, err = conn.Exec(
+		"UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = unixepoch() WHERE user_id = ?",
+		id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	_, err = conn.Exec(
+		"DELETE FROM GRACE_KEY WHERE uuid = ?",
+		graceKey,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
 func Init(request string, id int64, other map[string]any) (map[string]any, error) {
 	conn, err := getDB()
 	if err != nil {
@@ -608,6 +657,10 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 		return languageCodeCase(id, conn, other)
 	case "queryUserUsage":
 		return queryUserUsage(id, conn)
+	case "genGraceKey":
+		return genGraceKey(id, conn)
+	case "useGraceKey":
+		return useGraceKey(id, conn, other)
 	default:
 		return nil, fmt.Errorf("unsupported request: %s", request)
 	}

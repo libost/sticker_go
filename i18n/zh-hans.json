@@ -59,7 +59,8 @@
             "获取回复信息中的贴纸",
             "获取贴纸下载机器人的帮助信息",
             "查看贴纸机器人版本信息",
-            "设置语言"
+            "设置语言",
+            "使用宽限密钥重置使用次数"
         ],
         "setcommands_success": "✅ 命令列表已更新！",
         "clearlogs_desc": "🧐 真的要清除日志吗？\n此操作不可逆！",
@@ -80,7 +81,14 @@
         "query_desc_invalid_id": "🔍 提供的用户ID无效。",
         "query_desc_query_failed": "🔍 查询用户使用记录失败。",
         "query_desc_no_user": "🔍 未找到指定用户。",
-        "query_desc_success": "🔍 用户 %[1]d 的使用记录：\n当前使用次数: %[2]d\n总使用次数: %[3]d"
+        "query_desc_success": "🔍 用户 %[1]d 的使用记录：\n当前使用次数: %[2]d\n总使用次数: %[3]d",
+        "grace_desc_gen_failed": "🤔 生成宽限密钥失败。",
+        "grace_desc_gen_success": "✅ 宽限密钥生成成功！\n密钥: <code>%[1]s</code>\n一小时内有效。",
+        "grace_desc_no_key": "🤔 请提供宽限密钥。\n用法： /grace <密钥>",
+        "grace_desc_invalid_key": "🤔 提供的宽限密钥无效。",
+        "grace_desc_expired_key": "🥺 提供的宽限密钥已过期。",
+        "grace_desc_use_success": "✅ 宽限密钥使用成功！",
+        "grace_desc_use_failed": "🤔 使用宽限密钥失败。"
     },
     "callback":{
         "donate_disabled": "😕 捐赠功能已关闭，暂时无法接受捐赠。",
