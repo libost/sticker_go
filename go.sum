@@ -1,8 +1,8 @@
 aead.dev/minisign v0.2.0/go.mod h1:zdq6LdSd9TbuSxchxwhpA9zEb9YXcVGoE8JakuiGaIQ=
 aead.dev/minisign v0.3.0 h1:8Xafzy5PEVZqYDNP60yJHARlW1eOQtsKNp/Ph2c0vRA=
 aead.dev/minisign v0.3.0/go.mod h1:NLvG3Uoq3skkRMDuc3YHpWUTMTrSExqm+Ij73W13F6Y=
-github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.34 h1:TbjnnXhGbWvhJtnsRFc1WQEKmHKvAr4W5hrdoxVQ/s4=
-github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.34/go.mod h1:yrKnA/812p/Vh84TYQMz36/8SNLF7OOdTmKFr5i7W7g=
+github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.35 h1:THWaG6urv7EnopMeQcIdA5gOuDbtmRWDMpTBUIJRxk0=
+github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.35/go.mod h1:yrKnA/812p/Vh84TYQMz36/8SNLF7OOdTmKFr5i7W7g=
 github.com/coreos/go-systemd/v22 v22.7.0 h1:LAEzFkke61DFROc7zNLX/WA2i5J8gYqe0rSj9KI28KA=
 github.com/coreos/go-systemd/v22 v22.7.0/go.mod h1:xNUYtjHu2EDXbsxz1i41wouACIwT7Ybq9o0BQhMwD0w=
 github.com/creasty/defaults v1.8.0 h1:z27FJxCAa0JKt3utc0sCImAEb+spPucmKoOdLHvHYKk=
