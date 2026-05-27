@@ -65,7 +65,7 @@
         "restart_desc": "🔄 正在重啟機器人...",
         "shutdown_desc": "🤖 真的要關閉機器人嗎？\n此操作不可逆！",
         "shutdown_desc_systemd": "\n警告：目前環境似乎是 systemd 管理的服務，確認後機器人可能會再次啟動。",
-        "admin_commands_list": "管理者指令列表：\n/donaterecord - 取得所有捐贈記錄\n/getstats - 取得統計信息\n/resetusage - 重置使用記錄\n/clearcache - 清理快取\n/setcommands - 設置命令列表\n/clearlogs - 清除日誌\n/upgrade - 更新機器人\n/restart - 重啟機器人\n/shutdown - 關閉機器人",
+        "admin_commands_list": "管理者指令列表：\n/donaterecord - 取得所有捐贈記錄\n/getstats - 取得統計信息\n/query - 查詢用戶使用記錄\n/resetusage - 重置使用記錄\n/clearcache - 清理快取\n/setcommands - 設置命令列表\n/clearlogs - 清除日誌\n/upgrade - 更新機器人\n/restart - 重啟機器人\n/shutdown - 關閉機器人",
         "upgrade_desc_dev": "🤖 當前版本為開發版本，無法檢查更新。",
         "upgrade_desc_docker": "🤖 當前環境為 Docker，無法檢查更新。",
         "upgrade_desc_failed": "🤖 無法獲取最新版本信息，請稍後再試。",
@@ -74,7 +74,12 @@
         "upgrade_confirm":  "立即更新",
         "upgrade_cancel": "稍後再說",
         "languages_desc": "🌐 可用語言列表：\n",
-        "permission_denied": "😕 你沒有權限使用這個指令。"
+        "permission_denied": "😕 你沒有權限使用這個指令。",
+        "query_desc_no_args": "🔍 請提供用戶ID。\n用法: /query <用戶ID>",
+        "query_desc_invalid_id": "🔍 提供的用戶ID無效。",
+        "query_desc_query_failed": "🔍 查詢用戶使用記錄失敗。",
+        "query_desc_no_user": "🔍 未找到指定用戶。",
+        "query_desc_success": "🔍 用戶 %[1]d 的使用記錄：\n當前使用次數: %[2]d\n總使用次數: %[3]d"
     },
     "callback":{
         "donate_disabled": "😕 捐贈功能已關閉，暫時無法接受捐贈。",

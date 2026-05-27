@@ -548,6 +548,25 @@ func languageCodeCase(id int64, conn *sql.DB, other map[string]any) (map[string]
 	}
 }
 
+func queryUserUsage(id int64, conn *sql.DB) (map[string]any, error) {
+	var totalUsage int64
+	var usageCount int64
+	err := conn.QueryRow("SELECT total_usage_count, usage_count FROM USERPOOL WHERE user_id = ?", id).Scan(&totalUsage, &usageCount)
+	if err == sql.ErrNoRows {
+		return map[string]any{"user_id": id, "exists": false}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	data := map[string]any{
+		"user_id":     id,
+		"exists":      true,
+		"total_usage": float64(totalUsage),
+		"usage":       float64(usageCount),
+	}
+	return data, nil
+}
+
 func Init(request string, id int64, other map[string]any) (map[string]any, error) {
 	conn, err := getDB()
 	if err != nil {
@@ -587,6 +606,8 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 		return getLastCleanupTimeCase(conn)
 	case "language_code":
 		return languageCodeCase(id, conn, other)
+	case "queryUserUsage":
+		return queryUserUsage(id, conn)
 	default:
 		return nil, fmt.Errorf("unsupported request: %s", request)
 	}

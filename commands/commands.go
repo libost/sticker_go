@@ -54,6 +54,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("refund", refund))
 	dispatcher.AddHandler(handlers.NewCommand("upgrade", upgrade))
 	dispatcher.AddHandler(handlers.NewCommand("lang", languages))
+	dispatcher.AddHandler(handlers.NewCommand("query", query))
 }
 
 func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) {
@@ -981,4 +982,43 @@ func languages(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	return err
 
+}
+
+func query(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用这个命令，忽略群聊和频道中的命令
+	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	if admin, _ := checkAdmin(b, ctx, "query"); admin != true {
+		return nil
+	}
+	if len(ctx.Args()) == 1 {
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_no_args", langCode), nil)
+		return err
+	}
+	id, err := strconv.ParseInt(ctx.Args()[1], 10, 64)
+	if err != nil {
+		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_invalid_id", langCode), nil)
+		if replyErr != nil {
+			return replyErr
+		}
+		return err
+	}
+	queryData, err := database.Init("queryUserUsage", id, nil)
+	if err != nil {
+		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_query_failed", langCode), nil)
+		if replyErr != nil {
+			return replyErr
+		}
+		return err
+	}
+	if !queryData["exists"].(bool) {
+		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_no_user", langCode), nil)
+		return replyErr
+	}
+	usage := queryData["usage"].(float64)
+	totalUsage := queryData["total_usage"].(float64)
+	displayText := fmt.Sprintf(I.GetLocalisedString("commands.query_desc_success", langCode), id, int(usage), int(totalUsage))
+	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	return err
 }

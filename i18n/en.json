@@ -66,7 +66,7 @@
         "restart_desc": "🔄 Restarting the bot...",
         "shutdown_desc": "🤖 Are you sure you want to shut down the bot?\nThis action cannot be undone!",
         "shutdown_desc_systemd": "\nWarning: The current environment appears to be managed by systemd, and the bot may be restarted automatically after shutdown.",
-        "admin_commands_list": "Administrator Command List:\n/donaterecord - View all donation records\n/getstats - View statistics\n/resetusage - Reset usage records\n/clearcache - Clear cache\n/setcommands - Set command list\n/clearlogs - Clear logs\n/upgrade - Update the bot\n/restart - Restart the bot\n/shutdown - Shut down the bot",
+        "admin_commands_list": "Administrator Command List:\n/donaterecord - View all donation records\n/getstats - View statistics\n/query - Query user usage records\n/resetusage - Reset usage records\n/clearcache - Clear cache\n/setcommands - Set command list\n/clearlogs - Clear logs\n/upgrade - Update the bot\n/restart - Restart the bot\n/shutdown - Shut down the bot",
         "upgrade_desc_dev": "🤖 The current version is a development version and cannot check for updates.",
         "upgrade_desc_docker": "🤖 The current environment is Docker, and cannot check for updates.",
         "upgrade_desc_failed": "🤖 Failed to fetch the latest version information. Please try again later.",
@@ -75,7 +75,12 @@
         "upgrade_confirm":  "Update Now",
         "upgrade_cancel": "Later",
         "languages_desc": "🌐 Available languages:\n",
-        "permission_denied": "😕 You do not have permission to use this command."
+        "permission_denied": "😕 You do not have permission to use this command.",
+        "query_desc_no_args": "🔍 Please provide a user ID.\nUsage: /query <userID>",
+        "query_desc_invalid_id": "🔍 The provided user ID is invalid.",
+        "query_desc_query_failed": "🔍 Failed to query user usage records.",
+        "query_desc_no_user": "🔍 The specified user was not found.",
+        "query_desc_success": "🔍 User %[1]d's usage records:\nCurrent usage: %[2]d\nTotal usage: %[3]d"
     },
     "callback":{
         "donate_disabled": "😕 Donation is currently disabled, temporarily unable to accept donations.",
