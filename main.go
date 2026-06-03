@@ -210,6 +210,11 @@ func main() {
 		}()
 	}
 
+	_, err = database.Init("writePersistentData", 0, map[string]any{"last_api_endpoint": config.AppConfig.Advanced.ApiEndpoint, "last_api_token": config.AppConfig.General.Token})
+	if err != nil {
+		L.Log(fmt.Sprintf("failed to write persistent data to database: %v", err), C.LogLevelFatal)
+	}
+
 	updater.Idle() // 阻塞直到进程被关闭
 }
 
@@ -484,6 +489,19 @@ func configCheck(cfg *config.Config) error {
 	case strings.TrimSpace(cfg.General.Adminkey):
 		L.Log("admin key is not set in config.yaml, please set a random string as admin_key to protect your bot", C.LogLevelError)
 		return fmt.Errorf("admin key is not set in config.yaml")
+	}
+	perData, err := database.Init("getPersistentData", 0, nil)
+	if err != nil {
+		L.Log(fmt.Sprintf("failed to get persistent data from database: %v", err), C.LogLevelError)
+		return fmt.Errorf("failed to get persistent data from database: %v", err)
+	}
+	if apiEndpoint, ok := perData["last_api_endpoint"].(string); ok && apiEndpoint != "" && apiEndpoint != cfg.Advanced.ApiEndpoint {
+		L.Log(fmt.Sprintf("warning: api endpoint in config has been changed from '%s' to '%s', whether intentional or not, restart the bot, not reload", apiEndpoint, cfg.Advanced.ApiEndpoint), C.LogLevelWarn)
+		return fmt.Errorf("api endpoint in config has been changed from '%s' to '%s', whether intentional or not, restart the bot, not reload", apiEndpoint, cfg.Advanced.ApiEndpoint)
+	}
+	if token, ok := perData["last_api_token"].(string); ok && token != "" && token != cfg.General.Token {
+		L.Log("warning: bot token in config has been changed, whether intentional or not, restart the bot, not reload", C.LogLevelWarn)
+		return fmt.Errorf("bot token in config has been changed, whether intentional or not, restart the bot, not reload")
 	}
 	return nil
 }

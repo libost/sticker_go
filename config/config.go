@@ -66,6 +66,7 @@ type Config struct {
 	Advanced struct {
 		FfmpegPath   string `yaml:"ffmpeg_path,omitempty"`
 		FfmpegFilter string `yaml:"ffmpeg_filter,omitempty"`
+		ApiEndpoint  string `yaml:"api_endpoint,omitempty"`
 	} `yaml:"advanced,omitempty"`
 }
 
