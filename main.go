@@ -66,26 +66,65 @@ func main() {
 		fmt.Printf("default config file has been created at %s, please edit the config file and restart the bot.\n", C.ConfigFile)
 		return
 	}
+	_, err := database.Init("init", 0, nil) // 初始化数据库连接
+	if err != nil {
+		L.Log(fmt.Sprintf("failed to initialize database: %v", err), C.LogLevelFatal)
+	}
+	var logOutNeeded bool
 	config.Init()
 	cfg := config.AppConfig
-	if err := configCheck(cfg); err != nil {
-		panic(fmt.Sprintf("config check failed: %v", err))
+	if err := configCheck(cfg, false); err != nil {
+		if errors.Is(err, C.WarnApiChanged) {
+			logOutNeeded = true
+		} else {
+			panic(fmt.Sprintf("config check failed: %v", err))
+		}
 	}
 	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
 	token := cfg.General.Token
 	httpClient := httpClientWithProxy(cfg)
+	if logOutNeeded {
+		data, err := database.Init("getPersistentData", 0, nil)
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to get persistent data from database: %v", err), C.LogLevelFatal)
+		}
+		lastApiEndpoint, _ := data["last_api_endpoint"].(string)
+		var requestOpts *gotgbot.RequestOpts
+		if lastApiEndpoint != "" {
+			requestOpts = &gotgbot.RequestOpts{
+				APIURL: lastApiEndpoint,
+			}
+		}
+		b, err := gotgbot.NewBot(token, &gotgbot.BotOpts{
+			BotClient: &gotgbot.BaseBotClient{
+				Client:             *httpClient,
+				DefaultRequestOpts: requestOpts,
+			},
+		})
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to create bot for log out: %v", err), C.LogLevelFatal)
+		}
+		succeed, err := b.LogOut(nil)
+		if err != nil || !succeed {
+			L.Log(fmt.Sprintf("failed to log out: %v", err), C.LogLevelFatal)
+		}
+		_, err = database.Init("writePersistentData", 0, map[string]any{"last_api_endpoint": config.AppConfig.Advanced.ApiEndpoint})
+		if err != nil {
+			L.Log(fmt.Sprintf("failed to write persistent data to database: %v", err), C.LogLevelFatal)
+		}
+		L.Log("successfully logged out due to API endpoint change, bot will use new API endpoint on next startup. Now it will quit.", C.LogLevelInfo)
+		return // 退出当前进程，等待用户重启以使用新的 API 端点
+	}
 	b, err := gotgbot.NewBot(token, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
-			Client: *httpClient,
+			Client:             *httpClient,
+			DefaultRequestOpts: config.RequestOpts,
 		},
 	})
 	if err != nil {
 		L.Log(fmt.Sprintf("failed to create bot: %v", err), C.LogLevelFatal)
 	}
-	_, err = database.Init("init", 0, nil) // 初始化数据库连接
-	if err != nil {
-		L.Log(fmt.Sprintf("failed to initialize database: %v", err), C.LogLevelFatal)
-	}
+
 	cacheDir := C.CacheDir
 	cacheInfo, err := os.Stat(cacheDir) // 检查缓存目录是否存在
 	if os.IsNotExist(err) || (err == nil && !cacheInfo.IsDir()) {
@@ -153,6 +192,16 @@ func main() {
 	callback.AddHandlers(dispatcher)
 	dm.AddHandlers(dispatcher)
 
+	if logOutNeeded {
+		L.Log("API endpoint changed since last startup, performing logOut...", C.LogLevelWarn)
+		opts := &gotgbot.LogOutOpts{
+			RequestOpts: config.RequestOpts,
+		}
+		if _, err := b.LogOut(opts); err != nil {
+			L.Log(fmt.Sprintf("failed to log out: %v", err), C.LogLevelFatal)
+		}
+	}
+
 	// 启动 Bot
 	communicateCheck(cfg, updater, b)
 	c := cron.New()
@@ -186,7 +235,7 @@ func main() {
 			case syscall.SIGHUP:
 				L.Log("received SIGHUP signal, reloading configuration...", C.LogLevelInfo)
 				config.Init()
-				if err := configCheck(config.AppConfig); err != nil {
+				if err := configCheck(config.AppConfig, true); err != nil {
 					L.Log(fmt.Sprintf("config check failed after reload: %v", err), C.LogLevelFatal)
 				}
 				if !preqrequisitesCheck(config.AppConfig) {
@@ -473,7 +522,7 @@ func statsCleanup() {
 	}
 }
 
-func configCheck(cfg *config.Config) error {
+func configCheck(cfg *config.Config, reload bool) error {
 	if cfg == nil {
 		L.Log("config initialization returned nil config", C.LogLevelError)
 		return fmt.Errorf("config initialization returned nil config")
@@ -496,12 +545,21 @@ func configCheck(cfg *config.Config) error {
 		return fmt.Errorf("failed to get persistent data from database: %v", err)
 	}
 	if apiEndpoint, ok := perData["last_api_endpoint"].(string); ok && apiEndpoint != "" && apiEndpoint != cfg.Advanced.ApiEndpoint {
-		L.Log(fmt.Sprintf("warning: api endpoint in config has been changed from '%s' to '%s', whether intentional or not, restart the bot, not reload", apiEndpoint, cfg.Advanced.ApiEndpoint), C.LogLevelWarn)
-		return fmt.Errorf("api endpoint in config has been changed from '%s' to '%s', whether intentional or not, restart the bot, not reload", apiEndpoint, cfg.Advanced.ApiEndpoint)
+		if reload {
+			L.Log(fmt.Sprintf("warning: api endpoint in config has been changed from '%s' to '%s', whether intentional or not, restart the bot, not reload", apiEndpoint, cfg.Advanced.ApiEndpoint), C.LogLevelWarn)
+			return fmt.Errorf("api endpoint in config has been changed from '%s' to '%s', whether intentional or not, restart the bot, not reload", apiEndpoint, cfg.Advanced.ApiEndpoint)
+		} else {
+			L.Log(fmt.Sprintf("api endpoint in config has been changed from '%s' to '%s'", apiEndpoint, cfg.Advanced.ApiEndpoint), C.LogLevelWarn)
+			return C.WarnApiChanged
+		}
 	}
 	if token, ok := perData["last_api_token"].(string); ok && token != "" && token != cfg.General.Token {
-		L.Log("warning: bot token in config has been changed, whether intentional or not, restart the bot, not reload", C.LogLevelWarn)
-		return fmt.Errorf("bot token in config has been changed, whether intentional or not, restart the bot, not reload")
+		if reload {
+			L.Log("warning: bot token in config has been changed, whether intentional or not, restart the bot, not reload", C.LogLevelWarn)
+			return fmt.Errorf("bot token in config has been changed, whether intentional or not, restart the bot, not reload")
+		} else {
+			L.Log("bot token in config has been changed", C.LogLevelWarn)
+		}
 	}
 	return nil
 }

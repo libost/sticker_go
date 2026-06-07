@@ -143,3 +143,7 @@ var (
 	ErrInvalidGraceKey = errors.New("invalid grace_key")
 	ErrGraceKeyExpired = errors.New("grace_key expired")
 )
+
+var (
+	WarnApiChanged = errors.New("api endpoint changed")
+)

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	C "github.com/libost/sticker_go/constants"
 
 	"github.com/creasty/defaults"
@@ -72,6 +73,8 @@ type Config struct {
 
 var AppConfig *Config
 
+var RequestOpts *gotgbot.RequestOpts
+
 func loadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -103,6 +106,18 @@ func loadConfig(configPath string) (*Config, error) {
 	return cf, nil
 }
 
+func prepareRequestOpts(APIURL string) *gotgbot.RequestOpts {
+	var opts *gotgbot.RequestOpts
+	if APIURL == "" {
+		opts = &gotgbot.RequestOpts{}
+	} else {
+		opts = &gotgbot.RequestOpts{
+			APIURL: APIURL,
+		}
+	}
+	return opts
+}
+
 func Init() {
 	var configPath = C.ConfigFile
 	_, err := os.Stat(configPath)
@@ -114,4 +129,5 @@ func Init() {
 		panic(err)
 	}
 	AppConfig = cf
+	RequestOpts = prepareRequestOpts(AppConfig.Advanced.ApiEndpoint)
 }
