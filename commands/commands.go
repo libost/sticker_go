@@ -237,7 +237,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		data["usage"] = float64(0)
-		data["last_cycle_starts_at"] = float64(time.Now().Unix() + 24*3600)
+		data["last_cycle_starts_at"] = float64(time.Now().Unix())
 	}
 	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
@@ -1018,10 +1018,11 @@ func query(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_no_user", langCode), nil)
 		return replyErr
 	}
-	usage := queryData["usage"].(float64)
-	totalUsage := queryData["total_usage"].(float64)
-	displayText := fmt.Sprintf(I.GetLocalisedString("commands.query_desc_success", langCode), id, int(usage), int(totalUsage))
+	usage := queryData["usage"].(int64)
+	totalUsage := queryData["total_usage"].(int64)
+	displayText := fmt.Sprintf(I.GetLocalisedString("commands.query_desc_success", langCode), id, usage, totalUsage)
 	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	log.Log(fmt.Sprintf("User %d triggered /query for user %d", ctx.EffectiveUser.Id, id), C.LogLevelInfo)
 	return err
 }
 
