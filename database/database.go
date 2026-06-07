@@ -562,8 +562,8 @@ func queryUserUsage(id int64, conn *sql.DB) (map[string]any, error) {
 	data := map[string]any{
 		"user_id":     id,
 		"exists":      true,
-		"total_usage": float64(totalUsage),
-		"usage":       float64(usageCount),
+		"total_usage": totalUsage,
+		"usage":       usageCount,
 	}
 	return data, nil
 }
