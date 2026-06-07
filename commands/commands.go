@@ -231,15 +231,13 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return err
 	}
-	var dataModified bool
 	if (int(data["last_cycle_starts_at"].(float64)) + 24*3600) < int(time.Now().Unix()) {
 		_, err = database.Init("reset_usage", ctx.EffectiveUser.Id, nil)
 		if err != nil {
 			return err
 		}
 		data["usage"] = float64(0)
-		data["last_cycle_starts_at"] = float64(time.Now().Unix() + 24*3600)
-		dataModified = true
+		data["last_cycle_starts_at"] = float64(time.Now().Unix())
 	}
 	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
@@ -252,12 +250,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 		donationBonusExplanation = fmt.Sprintf(I.GetLocalisedString("commands.usage_desc_multiply", langCode), C.DonationBonusMultiplier)
 	}
 	remaining := max(limit-int(data["usage"].(float64)), 0)
-	var nextRefresh string
-	if dataModified {
-		nextRefresh = time.Unix(int64(data["last_cycle_starts_at"].(float64)), 0).Format("2006-01-02 15:04:05")
-	} else {
-		nextRefresh = time.Unix(int64(data["last_cycle_starts_at"].(float64))+24*3600, 0).Format("2006-01-02 15:04:05")
-	}
+	nextRefresh := time.Unix(int64(data["last_cycle_starts_at"].(float64))+24*3600, 0).Format("2006-01-02 15:04:05")
 	info := fmt.Sprintf(I.GetLocalisedString("commands.usage_desc", langCode),
 		int(data["usage"].(float64)), remaining, nextRefresh, donationBonusExplanation)
 	_, err = ctx.EffectiveMessage.Reply(b, info, nil)
