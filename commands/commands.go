@@ -54,6 +54,8 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("refund", refund))
 	dispatcher.AddHandler(handlers.NewCommand("upgrade", upgrade))
 	dispatcher.AddHandler(handlers.NewCommand("lang", languages))
+	dispatcher.AddHandler(handlers.NewCommand("query", query))
+	dispatcher.AddHandler(handlers.NewCommand("grace", grace))
 }
 
 func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) {
@@ -63,7 +65,7 @@ func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) 
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	switch command {
-	case "donate", "refund":
+	case "donate", "refund", "grace":
 		if !data["exists"].(bool) {
 			log.Log(fmt.Sprintf("User %d attempted to trigger /%s without a valid user record", ctx.EffectiveUser.Id, command), C.LogLevelWarn)
 			database.Init("create", ctx.EffectiveUser.Id, nil)
@@ -235,7 +237,7 @@ func usage(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		data["usage"] = float64(0)
-		data["last_cycle_starts_at"] = float64(time.Now().Unix() + 24*3600)
+		data["last_cycle_starts_at"] = float64(time.Now().Unix())
 	}
 	userGroup, err := database.Init("user_group", ctx.EffectiveUser.Id, nil)
 	if err != nil {
@@ -433,6 +435,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 			{Command: "help", Description: I.GetLocalisedString("commands.setcommands_desc_list[1]", code)},
 			{Command: "usage", Description: I.GetLocalisedString("commands.setcommands_desc_list[2]", code)},
 			{Command: "lang", Description: I.GetLocalisedString("commands.setcommands_desc_list[9]", code)},
+			{Command: "grace", Description: I.GetLocalisedString("commands.setcommands_desc_list[10]", code)},
 			{Command: "about", Description: I.GetLocalisedString("commands.setcommands_desc_list[3]", code)},
 		}
 		if config.AppConfig.Donation.Enabled {
@@ -981,4 +984,90 @@ func languages(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	return err
 
+}
+
+func query(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用这个命令，忽略群聊和频道中的命令
+	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	if admin, _ := checkAdmin(b, ctx, "query"); admin != true {
+		return nil
+	}
+	if len(ctx.Args()) == 1 {
+		_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_no_args", langCode), nil)
+		return err
+	}
+	id, err := strconv.ParseInt(ctx.Args()[1], 10, 64)
+	if err != nil {
+		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_invalid_id", langCode), nil)
+		if replyErr != nil {
+			return replyErr
+		}
+		return err
+	}
+	queryData, err := database.Init("queryUserUsage", id, nil)
+	if err != nil {
+		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_query_failed", langCode), nil)
+		if replyErr != nil {
+			return replyErr
+		}
+		return err
+	}
+	if !queryData["exists"].(bool) {
+		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.query_desc_no_user", langCode), nil)
+		return replyErr
+	}
+	usage := queryData["usage"].(int64)
+	totalUsage := queryData["total_usage"].(int64)
+	displayText := fmt.Sprintf(I.GetLocalisedString("commands.query_desc_success", langCode), id, usage, totalUsage)
+	_, err = ctx.EffectiveMessage.Reply(b, displayText, nil)
+	log.Log(fmt.Sprintf("User %d triggered /query for user %d", ctx.EffectiveUser.Id, id), C.LogLevelInfo)
+	return err
+}
+
+func grace(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用这个命令，忽略群聊和频道中的命令
+	}
+	if len(ctx.Args()) < 2 {
+		if admin, _ := checkAdmin(b, ctx, "grace"); admin != true {
+			_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_no_key", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+			return err
+		} else {
+			graceData, err := database.Init("genGraceKey", ctx.EffectiveUser.Id, nil)
+			if err != nil {
+				_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_gen_failed", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+				if replyErr != nil {
+					return replyErr
+				}
+				return err
+			}
+			_, err = ctx.EffectiveMessage.Reply(b, fmt.Sprintf(I.GetLocalisedString("commands.grace_desc_gen_success", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), graceData["grace_key"]), &gotgbot.SendMessageOpts{
+				ParseMode: "HTML",
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	key := ctx.Args()[1]
+	_, err := database.Init("useGraceKey", ctx.EffectiveUser.Id, map[string]any{"grace_key": key})
+	if err != nil {
+		if errors.Is(err, C.ErrInvalidGraceKey) {
+			_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_invalid_key", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+			return replyErr
+		}
+		if errors.Is(err, C.ErrGraceKeyExpired) {
+			_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_expired_key", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+			return replyErr
+		}
+		_, replyErr := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_use_failed", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+		if replyErr != nil {
+			return replyErr
+		}
+		return err
+	}
+	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_use_success", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+	return err
 }

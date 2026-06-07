@@ -59,14 +59,15 @@
             "获取回复信息中的贴纸",
             "获取贴纸下载机器人的帮助信息",
             "查看贴纸机器人版本信息",
-            "设置语言"
+            "设置语言",
+            "使用宽限密钥重置使用次数"
         ],
         "setcommands_success": "✅ 命令列表已更新！",
         "clearlogs_desc": "🧐 真的要清除日志吗？\n此操作不可逆！",
         "restart_desc": "🔄 正在重启机器人...",
         "shutdown_desc": "🤖 真的要关闭机器人吗？\n此操作不可逆！",
         "shutdown_desc_systemd": "\n警告：当前环境似乎是 systemd 管理的服务，确认后机器人可能被再次启动。",
-        "admin_commands_list": "管理员命令列表：\n/donaterecord - 获取所有捐赠记录\n/getstats - 获取统计信息\n/resetusage - 重置使用记录\n/clearcache - 清理缓存\n/setcommands - 设置命令列表\n/clearlogs - 清除日志\n/upgrade - 更新机器人\n/restart - 重启机器人\n/shutdown - 关闭机器人",
+        "admin_commands_list": "管理员命令列表：\n/donaterecord - 获取所有捐赠记录\n/getstats - 获取统计信息\n/query - 查询用户使用记录\n/resetusage - 重置使用记录\n/clearcache - 清理缓存\n/setcommands - 设置命令列表\n/clearlogs - 清除日志\n/upgrade - 更新机器人\n/restart - 重启机器人\n/shutdown - 关闭机器人",
         "upgrade_desc_dev": "🤖 当前版本为开发版本，无法检查更新。",
         "upgrade_desc_docker": "🤖 当前环境为 Docker，无法检查更新。",
         "upgrade_desc_failed": "🤖 无法获取最新版本信息，请稍后再试。",
@@ -75,7 +76,19 @@
         "upgrade_confirm":  "立即更新",
         "upgrade_cancel": "稍后再说",
         "languages_desc": "🌐 可用语言列表：\n",
-        "permission_denied": "😕 你没有权限使用这个命令。"
+        "permission_denied": "😕 你没有权限使用这个命令。",
+        "query_desc_no_args": "🔍 请提供用户ID。\n用法: /query <用户ID>",
+        "query_desc_invalid_id": "🔍 提供的用户ID无效。",
+        "query_desc_query_failed": "🔍 查询用户使用记录失败。",
+        "query_desc_no_user": "🔍 未找到指定用户。",
+        "query_desc_success": "🔍 用户 %[1]d 的使用记录：\n当前使用次数: %[2]d\n总使用次数: %[3]d",
+        "grace_desc_gen_failed": "🤔 生成宽限密钥失败。",
+        "grace_desc_gen_success": "✅ 宽限密钥生成成功！\n密钥: <code>%[1]s</code>\n一小时内有效。",
+        "grace_desc_no_key": "🤔 请提供宽限密钥。\n用法： /grace <密钥>",
+        "grace_desc_invalid_key": "🤔 提供的宽限密钥无效。",
+        "grace_desc_expired_key": "🥺 提供的宽限密钥已过期。",
+        "grace_desc_use_success": "✅ 宽限密钥使用成功！",
+        "grace_desc_use_failed": "🤔 使用宽限密钥失败。"
     },
     "callback":{
         "donate_disabled": "😕 捐赠功能已关闭，暂时无法接受捐赠。",
