@@ -75,6 +75,8 @@ var AppConfig *Config
 
 var RequestOpts *gotgbot.RequestOpts
 
+var LocalServerUsed bool
+
 func loadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -129,5 +131,6 @@ func Init() {
 		panic(err)
 	}
 	AppConfig = cf
+	LocalServerUsed = AppConfig.Advanced.ApiEndpoint != ""
 	RequestOpts = prepareRequestOpts(AppConfig.Advanced.ApiEndpoint)
 }

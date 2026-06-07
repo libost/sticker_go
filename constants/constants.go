@@ -42,9 +42,10 @@ const (
 )
 
 const (
-	MaxZipPartSizeBytes  int64 = 50 * 1024 * 1024
-	ZipArchiveFooterSize int64 = 22
-	ZipEntryHeaderSize   int64 = 30 + 46 + 64
+	MaxZipPartSizeBytes            int64 = 50 * 1024 * 1024
+	MaxZipPartSizeBytesLocalServer int64 = 2000 * 1024 * 1024
+	ZipArchiveFooterSize           int64 = 22
+	ZipEntryHeaderSize             int64 = 30 + 46 + 64
 )
 
 const (

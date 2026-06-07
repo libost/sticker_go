@@ -431,8 +431,9 @@ func buildWebhookOptions(cfg *config.Config) (ext.WebhookOpts, *gotgbot.SetWebho
 		webhookOpts.ListenAddr = fmt.Sprintf("127.0.0.1:%d", cfg.Webhook.Port)
 		return webhookOpts, setWebhookOpts
 	}
-
-	applyWebhookTLSConfig(cfg, &webhookOpts, setWebhookOpts)
+	if !config.LocalServerUsed {
+		applyWebhookTLSConfig(cfg, &webhookOpts, setWebhookOpts)
+	}
 	return webhookOpts, setWebhookOpts
 }
 
