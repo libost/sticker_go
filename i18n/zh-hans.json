@@ -15,7 +15,7 @@
         "get_desc_failed": "🥺 获取贴纸失败，请稍后重试。",
         "help": "获取帮助信息",
         "help_desc_private": "/start - 开始使用机器人\n/help - 获取帮助信息\n/usage - 查看使用情况\n/lang - 设置语言\n/about - 查看版本信息",
-        "help_desc_group": "/start - 开始使用机器人\n/get - 获取回复信息中的贴纸\n/help - 获取帮助信息\n/usage - 查看使用情况\n/lang - 设置语言\n/about - 查看版本信息",
+        "help_desc_group": "/start - 开始使用机器人\n/get - 获取回复信息中的贴纸\n/help - 获取帮助信息\n/usage - 查看使用情况\n/lang - 设置语言\n/grace - 使用宽限密钥\n/about - 查看版本信息",
         "help_desc_donate_enabled": "/donate - 向我们捐赠",
         "usage": "查看使用情况",
         "usage_desc_no_record": "😇 你还没有使用记录。",

@@ -15,7 +15,7 @@
         "get_desc_failed": "🥺 Failed to get the sticker, please try again later.",
         "help": "Get help information",
         "help_desc_private": "/start - Start using the bot\n/help - Get help information\n/usage - View usage information\n/lang - Set language\n/about - View version information",
-        "help_desc_group": "/start - Start using the bot\n/get - Get the sticker from the replied message\n/help - Get help information\n/usage - View usage information\n/lang - Set language\n/about - View version information",
+        "help_desc_group": "/start - Start using the bot\n/get - Get the sticker from the replied message\n/help - Get help information\n/usage - View usage information\n/lang - Set language\n/grace - Use grace key\n/about - View version information",
         "help_desc_donate_enabled": "/donate - Donate to us",
         "usage": "View usage information",
         "usage_desc_no_record": "😇 You have not used the bot yet.",

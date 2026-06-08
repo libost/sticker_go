@@ -15,7 +15,7 @@
         "get_desc_failed": "🥺 取得貼紙失敗，請稍後重試。",
         "help": "取得協助資訊",
         "help_desc_private": "/start - 開始使用機器人\n/help - 取得協助資訊\n/usage - 查看使用情況\n/lang - 設置語言\n/about - 查看版本資訊",
-        "help_desc_group": "/start - 開始使用機器人\n/get - 取得回覆訊息中的貼紙\n/help - 取得協助資訊\n/usage - 查看使用情況\n/lang - 設置語言\n/about - 查看版本資訊",
+        "help_desc_group": "/start - 開始使用機器人\n/get - 取得回覆訊息中的貼紙\n/help - 取得協助資訊\n/usage - 查看使用情況\n/lang - 設置語言\n/grace - 使用寬限密鑰\n/about - 查看版本資訊",
         "help_desc_donate_enabled": "/donate - 向我們捐贈",
         "usage": "查看使用情況",
         "usage_desc_no_record": "😇 你還沒有使用記錄。",
