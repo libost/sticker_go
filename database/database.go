@@ -616,6 +616,35 @@ func useGraceKey(id int64, conn *sql.DB, other map[string]any) (map[string]any, 
 	return nil, nil
 }
 
+func getPersistentData(conn *sql.DB) (map[string]any, error) {
+	var lastApiEndpoint sql.NullString
+	var lastApiToken sql.NullString
+	err := conn.QueryRow("SELECT last_api_endpoint, last_api_token FROM PERSISTENT_DATA WHERE id = 1").Scan(&lastApiEndpoint, &lastApiToken)
+	if err == sql.ErrNoRows {
+		return map[string]any{"last_api_endpoint": "", "last_api_token": ""}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !lastApiEndpoint.Valid {
+		lastApiEndpoint.String = ""
+	}
+	return map[string]any{"last_api_endpoint": lastApiEndpoint.String, "last_api_token": lastApiToken.String}, nil
+}
+
+func writePersistentData(conn *sql.DB, other map[string]any) (map[string]any, error) {
+	lastApiEndpoint, _ := other["last_api_endpoint"].(string)
+	lastApiToken, ok := other["last_api_token"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing last_api_token")
+	}
+	_, err := conn.Exec("INSERT OR REPLACE INTO PERSISTENT_DATA (id, last_api_endpoint, last_api_token) VALUES (1, ?, ?)", lastApiEndpoint, lastApiToken)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"last_api_endpoint": lastApiEndpoint, "last_api_token": lastApiToken}, nil
+}
+
 func Init(request string, id int64, other map[string]any) (map[string]any, error) {
 	conn, err := getDB()
 	if err != nil {
@@ -661,6 +690,10 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 		return genGraceKey(id, conn)
 	case "useGraceKey":
 		return useGraceKey(id, conn, other)
+	case "getPersistentData":
+		return getPersistentData(conn)
+	case "writePersistentData":
+		return writePersistentData(conn, other)
 	default:
 		return nil, fmt.Errorf("unsupported request: %s", request)
 	}

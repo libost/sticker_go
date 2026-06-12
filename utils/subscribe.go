@@ -22,6 +22,7 @@ func SubscribeCheck(b *gotgbot.Bot, ctx *ext.Context, uid int64, langCode string
 	}
 	result, err := b.GetChatMember(0, uid, &gotgbot.GetChatMemberOpts{
 		RequestOpts: &gotgbot.RequestOpts{
+			APIURL: config.AppConfig.Advanced.ApiEndpoint,
 			OverrideParams: map[string]any{
 				"chat_id": config.AppConfig.Subscription.Channel,
 			},

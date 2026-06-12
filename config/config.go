@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	C "github.com/libost/sticker_go/constants"
 
 	"github.com/creasty/defaults"
@@ -66,10 +67,15 @@ type Config struct {
 	Advanced struct {
 		FfmpegPath   string `yaml:"ffmpeg_path,omitempty"`
 		FfmpegFilter string `yaml:"ffmpeg_filter,omitempty"`
+		ApiEndpoint  string `yaml:"api_endpoint,omitempty"`
 	} `yaml:"advanced,omitempty"`
 }
 
 var AppConfig *Config
+
+var RequestOpts *gotgbot.RequestOpts
+
+var LocalServerUsed bool
 
 func loadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
@@ -102,6 +108,18 @@ func loadConfig(configPath string) (*Config, error) {
 	return cf, nil
 }
 
+func prepareRequestOpts(APIURL string) *gotgbot.RequestOpts {
+	var opts *gotgbot.RequestOpts
+	if APIURL == "" {
+		opts = &gotgbot.RequestOpts{}
+	} else {
+		opts = &gotgbot.RequestOpts{
+			APIURL: APIURL,
+		}
+	}
+	return opts
+}
+
 func Init() {
 	var configPath = C.ConfigFile
 	_, err := os.Stat(configPath)
@@ -113,4 +131,6 @@ func Init() {
 		panic(err)
 	}
 	AppConfig = cf
+	LocalServerUsed = AppConfig.Advanced.ApiEndpoint != ""
+	RequestOpts = prepareRequestOpts(AppConfig.Advanced.ApiEndpoint)
 }

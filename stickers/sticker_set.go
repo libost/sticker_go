@@ -377,13 +377,17 @@ func buildStickerPackZips(stickerSetName string, filePaths []string, tempDir str
 			cleanupZipPaths(zipPaths)
 			return nil, err
 		}
-		if entrySize > C.MaxZipPartSizeBytes {
+		maxSize := C.MaxZipPartSizeBytes
+		if config.LocalServerUsed {
+			maxSize = C.MaxZipPartSizeBytesLocalServer
+		}
+		if entrySize > maxSize {
 			_ = closeCurrentZip()
 			cleanupZipPaths(zipPaths)
 			return nil, fmt.Errorf("sticker file %s exceeds zip part size limit", filepath.Base(path))
 		}
 
-		if currentZipFileCount > 0 && currentZipSize+entrySize > C.MaxZipPartSizeBytes {
+		if currentZipFileCount > 0 && currentZipSize+entrySize > maxSize {
 			if err := closeCurrentZip(); err != nil {
 				cleanupZipPaths(zipPaths)
 				return nil, err
