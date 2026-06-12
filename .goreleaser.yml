@@ -15,6 +15,8 @@ builds:
     goarch:
       - amd64
       - arm64
+    goamd64:
+      - v3
     main: ./main.go
     ldflags: |
       -X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL "dev" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }}
@@ -32,6 +34,8 @@ builds:
     goarch:
       - amd64
       - arm64
+    goamd64:
+      - v3
     main: ./main.go
     ldflags: |
       -X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL "dev" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }}
@@ -49,6 +53,8 @@ builds:
     goarch:
       - amd64
       - arm64
+    goamd64:
+      - v3
     main: ./main.go
     ldflags: |
       -X github.com/libost/sticker_go/version.Version={{ if eq .Env.RELEASE_CHANNEL "dev" }}{{ .ShortCommit }}{{ else }}{{ .Version }}{{ end }}
