@@ -40,3 +40,9 @@ CREATE TABLE IF NOT EXISTS LAST_CLEANUP (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     last_cleanup_at INTEGER DEFAULT (unixepoch())
 );
+
+CREATE TABLE IF NOT EXISTS PERSISTENT_DATA (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_api_endpoint TEXT,
+    last_api_token TEXT
+);

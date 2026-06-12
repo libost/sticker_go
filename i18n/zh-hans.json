@@ -15,14 +15,14 @@
         "get_desc_failed": "🥺 获取贴纸失败，请稍后重试。",
         "help": "获取帮助信息",
         "help_desc_private": "/start - 开始使用机器人\n/help - 获取帮助信息\n/usage - 查看使用情况\n/lang - 设置语言\n/about - 查看版本信息",
-        "help_desc_group": "/start - 开始使用机器人\n/get - 获取回复信息中的贴纸\n/help - 获取帮助信息\n/usage - 查看使用情况\n/lang - 设置语言\n/about - 查看版本信息",
+        "help_desc_group": "/start - 开始使用机器人\n/get - 获取回复信息中的贴纸\n/help - 获取帮助信息\n/usage - 查看使用情况\n/lang - 设置语言\n/grace - 使用宽限密钥\n/about - 查看版本信息",
         "help_desc_donate_enabled": "/donate - 向我们捐赠",
         "usage": "查看使用情况",
         "usage_desc_no_record": "😇 你还没有使用记录。",
         "usage_desc_multiply": " \n(捐赠奖励: %[1]g 倍)",
         "usage_desc": "🗒️ 使用信息:\n已使用: %[1]d次\n剩余: %[2]d次\n下次刷新: %[3]s%[4]s",
         "about": "查看版本信息",
-        "about_desc": "版本: <code>%[1]s</code>\n构建时间: <code>%[2]s</code>\nGit 提交: <code>%[3]s</code>\n分支: <code>%[4]s</code>\n项目地址: https://github.com/libost/sticker_go",
+        "about_desc": "版本: <code>%[1]s</code>\n构建时间: <code>%[2]s</code>\nGit 提交: <code>%[3]s</code>\n分支: <code>%[4]s</code>\n项目地址: https://github.com/libost/sticker_go \n\n开源许可证详见 /license",
         "about_desc_group": "😇 检测到群聊环境，部分功能已禁用\n\n",
         "about_desc_docker": "⚠️ 当前环境为 Docker，某些功能可能受限\n\n",
         "donate": "向我们捐赠",
@@ -88,7 +88,9 @@
         "grace_desc_invalid_key": "🤔 提供的宽限密钥无效。",
         "grace_desc_expired_key": "🥺 提供的宽限密钥已过期。",
         "grace_desc_use_success": "✅ 宽限密钥使用成功！",
-        "grace_desc_use_failed": "🤔 使用宽限密钥失败。"
+        "grace_desc_use_failed": "🤔 使用宽限密钥失败。",
+        "license": "开源许可证",
+        "license_desc": "本项目采用 <a href='https://github.com/libost/sticker_go/blob/main/LICENSE'>MIT 许可证</a> \n\n本项目依赖以下开源项目： \n- <a href='https://github.com/PaulSonOfLars/gotgbot/blob/v2/LICENSE'>Golang Telegram Bot library</a>\n- <a href='https://github.com/goccy/go-yaml/blob/master/LICENSE'>YAML support for the Go language</a>\n- <a href='https://github.com/coreos/go-systemd/blob/main/LICENSE'>go-systemd</a>\n- <a href='https://github.com/creasty/defaults/blob/master/LICENSE'>defaults</a>\n- <a href='https://github.com/google/uuid/blob/master/LICENSE'>uuid</a>\n- <a href='https://github.com/minio/selfupdate/blob/master/LICENSE'>selfupdate</a>\n- <a href='https://github.com/robfig/cron/blob/v3/LICENSE'>cron</a>\n- <a href='https://cs.opensource.google/go/x/image/+/master:LICENSE'>image</a>\n- <a href='https://cs.opensource.google/go/x/net/+/master:LICENSE'>net</a>\n- <a href='https://gitlab.com/cznic/sqlite/-/blob/master/LICENSE'>sqlite</a>"
     },
     "callback":{
         "donate_disabled": "😕 捐赠功能已关闭，暂时无法接受捐赠。",

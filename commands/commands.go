@@ -56,6 +56,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("lang", languages))
 	dispatcher.AddHandler(handlers.NewCommand("query", query))
 	dispatcher.AddHandler(handlers.NewCommand("grace", grace))
+	dispatcher.AddHandler(handlers.NewCommand("license", license))
 }
 
 func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) {
@@ -1069,5 +1070,13 @@ func grace(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	_, err = ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_use_success", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
+	return err
+}
+
+func license(b *gotgbot.Bot, ctx *ext.Context) error {
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.license_desc", langCode), &gotgbot.SendMessageOpts{
+		ParseMode: "HTML",
+	})
 	return err
 }
