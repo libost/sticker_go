@@ -22,7 +22,7 @@
         "usage_desc_multiply": " \n(Donation bonus: %[1]g x)",
         "usage_desc": "🗒️ Usage Information:\nUsed: %[1]d times\nRemaining: %[2]d times\nNext refresh: %[3]s%[4]s",
         "about": "View version information",
-        "about_desc": "Version: <code>%[1]s</code>\nBuild time: <code>%[2]s</code>\nGit commit: <code>%[3]s</code>\nBranch: <code>%[4]s</code>\nProject URL: https://github.com/libost/sticker_go",
+        "about_desc": "Version: <code>%[1]s</code>\nBuild time: <code>%[2]s</code>\nGit commit: <code>%[3]s</code>\nBranch: <code>%[4]s</code>\nProject URL: https://github.com/libost/sticker_go \n\nFor open source license, see /license",
         "about_desc_group": "😇 Group environment detected, some features are disabled\n\n",
         "about_desc_docker": "⚠️ The current environment is Docker, and some features may be limited\n\n",
         "donate": "Donate to us",
@@ -87,7 +87,8 @@
         "grace_desc_invalid_key": "🤔 The provided grace key is invalid.",
         "grace_desc_expired_key": "🥺 The provided grace key has expired.",
         "grace_desc_use_success": "✅ Grace key used successfully!",
-        "grace_desc_use_failed": "🤔 Failed to use grace key."
+        "grace_desc_use_failed": "🤔 Failed to use grace key.",
+        "license_desc": "This project is licensed under the <a href='https://github.com/libost/sticker_go/blob/main/LICENSE'>MIT License</a> \n\nThis project depends on the following open-source projects: \n- <a href='https://github.com/PaulSonOfLars/gotgbot/blob/v2/LICENSE'>Golang Telegram Bot library</a>\n- <a href='https://github.com/goccy/go-yaml/blob/master/LICENSE'>YAML support for the Go language</a>\n- <a href='https://github.com/coreos/go-systemd/blob/main/LICENSE'>go-systemd</a>\n- <a href='https://github.com/creasty/defaults/blob/master/LICENSE'>defaults</a>\n- <a href='https://github.com/google/uuid/blob/master/LICENSE'>uuid</a>\n- <a href='https://github.com/minio/selfupdate/blob/master/LICENSE'>selfupdate</a>\n- <a href='https://github.com/robfig/cron/blob/v3/LICENSE'>cron</a>\n- <a href='https://cs.opensource.google/go/x/image/+/master:LICENSE'>image</a>\n- <a href='https://cs.opensource.google/go/x/net/+/master:LICENSE'>net</a>\n- <a href='https://gitlab.com/cznic/sqlite/-/blob/master/LICENSE'>sqlite</a>"
     },
     "callback":{
         "donate_disabled": "😕 Donation is currently disabled, temporarily unable to accept donations.",
