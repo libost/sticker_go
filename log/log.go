@@ -1,12 +1,16 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"runtime/metrics"
 	"runtime/pprof"
 	"time"
 
+	"github.com/coreos/go-systemd/v22/dbus"
 	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
 )
@@ -96,4 +100,86 @@ func timeNow() (string, bool) {
 		isTimeRight = true
 	}
 	return timestamp, isTimeRight
+}
+
+func memoryUsage() (uint64, error) {
+	samples := make([]metrics.Sample, 1)
+	samples[0].Name = "/memory/classes/heap/objects:bytes"
+	metrics.Read(samples)
+	var memoryBytes uint64
+	_, exists := os.LookupEnv("INVOCATION_ID")
+	if exists {
+		ctx := context.Background()
+		conn, err := dbus.NewSystemConnectionContext(ctx)
+		if err != nil {
+			Log(fmt.Sprintf("Failed to connect to systemd dbus: %v", err), C.LogLevelFatal)
+		}
+		defer conn.Close()
+		prop, err := conn.GetServicePropertyContext(ctx, "sticker_go.service", "MemoryCurrent")
+		if err != nil {
+			Log(fmt.Sprintf("Failed to get memory usage from systemd cgroup: %v", err), C.LogLevelError)
+			memoryBytes = 18446744073709551615 // 2^64-1, 表示未知内存使用量
+		}
+		memoryBytes = prop.Value.Value().(uint64)
+	} else {
+		switch samples[0].Value.Kind() {
+		case metrics.KindUint64:
+			memoryBytes = samples[0].Value.Uint64()
+		case metrics.KindFloat64:
+			memoryBytes = uint64(samples[0].Value.Float64())
+		default:
+			var mem runtime.MemStats
+			runtime.ReadMemStats(&mem)
+			memoryBytes = mem.Alloc
+		}
+	}
+	return memoryBytes, nil
+}
+
+func memLogtoFile(memoryBytes uint64) error {
+	memFilePath := fmt.Sprintf("%s/memory_%s.log", C.LogDir, time.Now().Format("2006-01-02"))
+	memMessage := fmt.Sprintf("[%s] Memory Usage: %d bytes\n", time.Now().Format(time.RFC3339), memoryBytes)
+	f, err := os.OpenFile(memFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Failed to open memory log file: %v\n", err)
+		return err
+	}
+	defer f.Close()
+	if _, err := f.WriteString(memMessage); err != nil {
+		fmt.Printf("Failed to write to memory log file: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func MemoryLog() error {
+	if config.AppConfig.Log.Level != "DEBUG" {
+		return nil
+	}
+	go func() {
+		memoryBytes, err := memoryUsage()
+		if err != nil {
+			Log(fmt.Sprintf("Failed to get memory usage: %v", err), C.LogLevelError)
+			return
+		}
+		err = memLogtoFile(memoryBytes)
+		if err != nil {
+			Log(fmt.Sprintf("Failed to log memory usage: %v", err), C.LogLevelError)
+			return
+		}
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			memoryBytes, err := memoryUsage()
+			if err != nil {
+				Log(fmt.Sprintf("Failed to get memory usage: %v", err), C.LogLevelError)
+				continue
+			}
+			err = memLogtoFile(memoryBytes)
+			if err != nil {
+				Log(fmt.Sprintf("Failed to log memory usage: %v", err), C.LogLevelError)
+			}
+		}
+	}()
+	return nil
 }

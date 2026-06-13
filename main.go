@@ -81,6 +81,7 @@ func main() {
 		}
 	}
 	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
+	L.MemoryLog()
 	token := cfg.General.Token
 	httpClient := httpClientWithProxy(cfg)
 	if logOutNeeded {
