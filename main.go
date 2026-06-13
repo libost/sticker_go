@@ -108,7 +108,7 @@ func main() {
 		if err != nil || !succeed {
 			L.Log(fmt.Sprintf("failed to log out: %v", err), C.LogLevelFatal)
 		}
-		_, err = database.Init("writePersistentData", 0, map[string]any{"last_api_endpoint": config.AppConfig.Advanced.ApiEndpoint})
+		_, err = database.Init("writePersistentData", 0, map[string]any{"last_api_endpoint": config.AppConfig.Advanced.ApiEndpoint, "last_api_token": config.AppConfig.General.Token})
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to write persistent data to database: %v", err), C.LogLevelFatal)
 		}
