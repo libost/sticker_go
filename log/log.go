@@ -64,7 +64,7 @@ func Log(message string, level C.LogLevel) {
 	logToFile(preMessage)
 	os.Stdout.WriteString(logMessage)
 	if level == C.LogLevelFatal {
-		dumpFile, err := os.Create(fmt.Sprintf("pprof_%d.pprof", time.Now().Unix()))
+		dumpFile, err := os.Create(fmt.Sprintf("%s/pprof_%d.pprof", C.Dir, time.Now().Unix()))
 		if err != nil {
 			log.Printf("Failed to create pprof dump file: %v", err)
 		}
