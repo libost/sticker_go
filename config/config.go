@@ -69,6 +69,9 @@ type Config struct {
 		FfmpegFilter string `yaml:"ffmpeg_filter,omitempty"`
 		ApiEndpoint  string `yaml:"api_endpoint,omitempty"`
 	} `yaml:"advanced,omitempty"`
+	Experimental struct {
+		EnableActiveGC bool `yaml:"enable_active_gc" default:"false"`
+	} `yaml:"experimental,omitempty"`
 }
 
 var AppConfig *Config

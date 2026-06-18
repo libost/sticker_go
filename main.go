@@ -264,8 +264,10 @@ func main() {
 	if err != nil {
 		L.Log(fmt.Sprintf("failed to write persistent data to database: %v", err), C.LogLevelFatal)
 	}
-
-	utils.ActiveGC() // 启动主动垃圾回收
+	if config.AppConfig.Experimental.EnableActiveGC {
+		L.Log("experimental feature 'EnableActiveGC' is enabled, starting active garbage collection routine...", C.LogLevelInfo)
+		utils.ActiveGC() // 启动主动垃圾回收
+	}
 
 	updater.Idle() // 阻塞直到进程被关闭
 }
