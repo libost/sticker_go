@@ -7,11 +7,36 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"time"
 
 	C "github.com/libost/sticker_go/constants"
+	"github.com/libost/sticker_go/log"
 
 	"github.com/goccy/go-yaml"
 )
+
+var (
+	CurrentTasks = int64(0)
+)
+
+func AddTaskCount() error {
+	CurrentTasks++
+	if CurrentTasks < 0 {
+		CurrentTasks = 0
+		return errors.New("task count cannot be negative")
+	}
+	return nil
+}
+
+func SubtractTaskCount() error {
+	CurrentTasks--
+	if CurrentTasks < 0 {
+		CurrentTasks = 0
+		return errors.New("task count cannot be negative")
+	}
+	return nil
+}
 
 func ConfigToYAML() error {
 	defaultConfig := C.DefaultConfig
@@ -87,4 +112,20 @@ func HealthCheckEP() (*http.Server, <-chan error, error) {
 	}()
 
 	return srv, errCh, nil
+}
+
+func ActiveGC() {
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			if CurrentTasks == 0 {
+				log.Log("No active tasks, running garbage collection...", C.LogLevelDebug)
+				runtime.GC()
+			} else {
+				log.Log("Skipping GC as tasks are still running. CurrentTasks: "+fmt.Sprint(CurrentTasks), C.LogLevelInfo)
+				continue
+			}
+		}
+	}()
 }

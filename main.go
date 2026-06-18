@@ -265,6 +265,8 @@ func main() {
 		L.Log(fmt.Sprintf("failed to write persistent data to database: %v", err), C.LogLevelFatal)
 	}
 
+	utils.ActiveGC() // 启动主动垃圾回收
+
 	updater.Idle() // 阻塞直到进程被关闭
 }
 
