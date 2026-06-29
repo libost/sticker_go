@@ -41,7 +41,7 @@
         "refund_desc": "📄 您有以下捐赠记录符合退款条件：\n",
         "refund_desc_item": "%[1]d. 金额: %[2]d, 时间: %[3]s\n",
         "refund_desc_no_applicable": "🥺 没有可用于申请退款的有效捐赠记录。",
-        "getstats_details": "📃 管理员统计信息:\n总用户数: %[1]d\n总使用次数: %[2]d\n近一周使用次数: %[3]d\n当前缓存占用: %[4]d MB\n当前内存使用: %[5]d MB\n当前日志占用: %[6]d MB",
+        "getstats_details": "📃 管理员统计信息:\n运行时间: %[1]d天 %[2]d小时 %[3]d分钟 %[4]f秒\n总用户数: %[5]d\n总使用次数: %[6]d\n近一周使用次数: %[7]d\n当前缓存占用: %[8]d MB\n当前内存使用: %[9]d MB\n当前日志占用: %[10]d MB",
         "setadmin_no_records": "✍️ 正在创建用户记录。\n请重试你刚才的命令。",
         "setadmin_already": "😇 你已经是管理员了。",
         "setadmin_no_key": "🤔 请提供密钥。",

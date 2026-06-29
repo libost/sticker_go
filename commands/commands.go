@@ -314,7 +314,9 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 			memoryBytes = mem.Alloc
 		}
 	}
+	upsecs, upmins, uphours, updays := utils.Uptime()
 	info := fmt.Sprintf(I.GetLocalisedString("commands.getstats_details", langCode),
+		updays, uphours, upmins, upsecs,
 		int(stats["stats"].(map[string]any)["total_users"].(float64)),
 		int(stats["stats"].(map[string]any)["total_usage"].(float64)),
 		int(stats["stats"].(map[string]any)["weekly_usage"].(float64)),

@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 
 var (
 	CurrentTasks = int64(0)
+	startTime    = time.Now()
 )
 
 func AddTaskCount() error {
@@ -128,4 +130,25 @@ func ActiveGC() {
 			}
 		}
 	}()
+}
+
+// Returns the uptime of the application in seconds, minutes, hours, and days.
+func Uptime() (float64, int64, int64, int64) {
+	uptime := time.Since(startTime).Seconds()
+	if uptime >= 60 {
+		minutes := int64(uptime / 60)
+		seconds := math.Mod(uptime, 60)
+		if minutes >= 60 {
+			hours := minutes / 60
+			minutes = int64(minutes % 60)
+			if hours >= 24 {
+				days := hours / 24
+				hours = int64(hours % 24)
+				return seconds, minutes, hours, days
+			}
+			return seconds, minutes, hours, 0
+		}
+		return seconds, minutes, 0, 0
+	}
+	return time.Since(startTime).Seconds(), 0, 0, 0
 }

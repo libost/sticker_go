@@ -41,7 +41,7 @@
         "refund_desc": "📄 您有以下捐款紀錄符合退款條件：\n",
         "refund_desc_item": "%[1]d. 金額: %[2]d, 時間: %[3]s\n",
         "refund_desc_no_applicable": "🥺 沒有可用於申請退款的有效捐贈記錄。",
-        "getstats_details": "📃 管理者統計資料:\n總使用者數: %[1]d\n總使用次數: %[2]d\n近一週使用次數: %[3]d\n目前快取佔用: %[4]d MB\n目前記憶體使用: %[5]d MB\n目前日誌佔用: %[6]d MB",
+        "getstats_details": "📃 管理者統計資料:\n運行時間: %[1]d天 %[2]d小時 %[3]d分鐘 %[4]f秒\n總使用者數: %[5]d\n總使用次數: %[6]d\n近一週使用次數: %[7]d\n目前快取佔用: %[8]d MB\n目前記憶體使用: %[9]d MB\n目前日誌佔用: %[10]d MB",
         "setadmin_no_records": "✍️ 正在建立使用者記錄。 \n請重試你剛才的命令。",
         "setadmin_already": "😇 你已經是管理者了。",
         "setadmin_no_key": "🤔 請提供密鑰。",
