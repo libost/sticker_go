@@ -22,7 +22,7 @@
         "usage_desc_multiply": " \n(捐赠奖励: %[1]g 倍)",
         "usage_desc": "🗒️ 使用信息:\n已使用: %[1]d次\n剩余: %[2]d次\n下次刷新: %[3]s%[4]s",
         "about": "查看版本信息",
-        "about_desc": "版本: <code>%[1]s</code>\n构建时间: <code>%[2]s</code>\nGit 提交: <code>%[3]s</code>\n分支: <code>%[4]s</code>\n项目地址: https://github.com/libost/sticker_go \n\n开源许可证详见 /license",
+        "about_desc": "版本: <code>%[1]s</code>\n构建时间: <code>%[2]s</code>\nGit 提交: <code>%[3]s</code>\n分支: <code>%[4]s</code>\n运行环境: <code>%[5]s/%[6]s</code>\nGo 版本: <code>%[7]s</code>\n项目地址: https://github.com/libost/sticker_go \n\n开源许可证详见 /license",
         "about_desc_group": "😇 检测到群聊环境，部分功能已禁用\n\n",
         "about_desc_docker": "⚠️ 当前环境为 Docker，某些功能可能受限\n\n",
         "donate": "向我们捐赠",

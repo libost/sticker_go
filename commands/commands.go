@@ -480,7 +480,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	displayText := fmt.Sprintf(I.GetLocalisedString("commands.about_desc", langCode), V.Version, V.BuildTime, V.GitCommit, V.Branch)
+	displayText := fmt.Sprintf(I.GetLocalisedString("commands.about_desc", langCode), V.Version, V.BuildTime, V.GitCommit, V.Branch, runtime.GOOS, runtime.GOARCH, runtime.Version())
 	if os.Getenv("IN_DOCKER") == "true" {
 		displayText = I.GetLocalisedString("commands.about_desc_docker", langCode) + displayText
 	}
