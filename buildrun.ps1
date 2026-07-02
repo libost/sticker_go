@@ -4,6 +4,7 @@ if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
 }
 $DateStamp = Get-Date -Format "s"
 $Version = "InDev"
+$env:GOAMD64 = "v3"
 go build -o sticker_go.exe -ldflags "-X github.com/libost/sticker_go/version.Version=$Version -X github.com/libost/sticker_go/version.BuildTime=$DateStamp -s -w" main.go
 Write-Output "Build completed: sticker_go.exe (Version: $Version, Build Time: $DateStamp)"
 ./sticker_go.exe

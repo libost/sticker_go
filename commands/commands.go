@@ -314,7 +314,9 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 			memoryBytes = mem.Alloc
 		}
 	}
+	upsecs, upmins, uphours, updays := utils.Uptime()
 	info := fmt.Sprintf(I.GetLocalisedString("commands.getstats_details", langCode),
+		updays, uphours, upmins, upsecs,
 		int(stats["stats"].(map[string]any)["total_users"].(float64)),
 		int(stats["stats"].(map[string]any)["total_usage"].(float64)),
 		int(stats["stats"].(map[string]any)["weekly_usage"].(float64)),
@@ -478,7 +480,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func about(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	displayText := fmt.Sprintf(I.GetLocalisedString("commands.about_desc", langCode), V.Version, V.BuildTime, V.GitCommit, V.Branch)
+	displayText := fmt.Sprintf(I.GetLocalisedString("commands.about_desc", langCode), V.Version, V.BuildTime, V.GitCommit, V.Branch, runtime.GOOS, runtime.GOARCH, runtime.Version())
 	if os.Getenv("IN_DOCKER") == "true" {
 		displayText = I.GetLocalisedString("commands.about_desc_docker", langCode) + displayText
 	}

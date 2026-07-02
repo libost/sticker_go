@@ -18,6 +18,8 @@ on:
       - "Dockerfile"
       - "docker-compose.yml"
       - ".gitattributes"
+      - "**.ps1"
+      - "**.sh"
   pull_request:
     branches: [ "dev" ]
     paths-ignore:
@@ -32,6 +34,8 @@ on:
       - "Dockerfile"
       - "docker-compose.yml"
       - ".gitattributes"
+      - "**.ps1"
+      - "**.sh"
 permissions:
   contents: write
 

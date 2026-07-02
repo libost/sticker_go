@@ -6,5 +6,6 @@ then
 fi
 DateStamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 Version="InDev"
+goamd64="v3"
 go build -o sticker_go -ldflags "-X github.com/libost/sticker_go/version.Version=$Version -X github.com/libost/sticker_go/version.BuildTime=$DateStamp" main.go
 echo "Build completed: sticker_go (Version: $Version, Build Time: $DateStamp)"

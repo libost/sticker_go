@@ -36,6 +36,8 @@ func (e *StickerPackLimitError) Error() string {
 // GetStickerPack 下载贴纸包中所有贴纸并按 50MB 限制打包后返回本地 zip 路径列表。
 // 已缓存的贴纸会直接复用，无需重新下载。
 func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId int64, ctx *ext.Context) ([]string, error) {
+	utils.AddTaskCount()
+	defer utils.SubtractTaskCount()
 	stickerSet, err := b.GetStickerSet(stickerSetName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sticker set: %v", err)

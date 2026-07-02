@@ -171,6 +171,8 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func GetSticker(b *gotgbot.Bot, sticker *gotgbot.Sticker, uid int64, cf *config.Config) (string, func(), error) {
+	utils.AddTaskCount()
+	defer utils.SubtractTaskCount()
 	if sticker == nil {
 		return "", func() {}, errors.New("sticker is nil")
 	}

@@ -3,15 +3,42 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"time"
 
 	C "github.com/libost/sticker_go/constants"
+	"github.com/libost/sticker_go/log"
 
 	"github.com/goccy/go-yaml"
 )
+
+var (
+	CurrentTasks = int64(0)
+	startTime    = time.Now()
+)
+
+func AddTaskCount() error {
+	CurrentTasks++
+	if CurrentTasks < 0 {
+		CurrentTasks = 0
+		return errors.New("task count cannot be negative")
+	}
+	return nil
+}
+
+func SubtractTaskCount() error {
+	CurrentTasks--
+	if CurrentTasks < 0 {
+		CurrentTasks = 0
+		return errors.New("task count cannot be negative")
+	}
+	return nil
+}
 
 func ConfigToYAML() error {
 	defaultConfig := C.DefaultConfig
@@ -87,4 +114,41 @@ func HealthCheckEP() (*http.Server, <-chan error, error) {
 	}()
 
 	return srv, errCh, nil
+}
+
+func ActiveGC() {
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			if CurrentTasks == 0 {
+				log.Log("No active tasks, running garbage collection...", C.LogLevelDebug)
+				runtime.GC()
+			} else {
+				log.Log("Skipping GC as tasks are still running. CurrentTasks: "+fmt.Sprint(CurrentTasks), C.LogLevelInfo)
+				continue
+			}
+		}
+	}()
+}
+
+// Returns the uptime of the application in seconds, minutes, hours, and days.
+func Uptime() (float64, int64, int64, int64) {
+	uptime := time.Since(startTime).Seconds()
+	if uptime >= 60 {
+		minutes := int64(uptime / 60)
+		seconds := math.Mod(uptime, 60)
+		if minutes >= 60 {
+			hours := minutes / 60
+			minutes = int64(minutes % 60)
+			if hours >= 24 {
+				days := hours / 24
+				hours = int64(hours % 24)
+				return seconds, minutes, hours, days
+			}
+			return seconds, minutes, hours, 0
+		}
+		return seconds, minutes, 0, 0
+	}
+	return time.Since(startTime).Seconds(), 0, 0, 0
 }

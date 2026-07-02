@@ -81,6 +81,7 @@ func main() {
 		}
 	}
 	L.Log(fmt.Sprintf("starting sticker_go, Version: %s", V.Version), C.LogLevelDebug)
+	L.MemoryLog()
 	token := cfg.General.Token
 	httpClient := httpClientWithProxy(cfg)
 	if logOutNeeded {
@@ -108,7 +109,7 @@ func main() {
 		if err != nil || !succeed {
 			L.Log(fmt.Sprintf("failed to log out: %v", err), C.LogLevelFatal)
 		}
-		_, err = database.Init("writePersistentData", 0, map[string]any{"last_api_endpoint": config.AppConfig.Advanced.ApiEndpoint})
+		_, err = database.Init("writePersistentData", 0, map[string]any{"last_api_endpoint": config.AppConfig.Advanced.ApiEndpoint, "last_api_token": config.AppConfig.General.Token})
 		if err != nil {
 			L.Log(fmt.Sprintf("failed to write persistent data to database: %v", err), C.LogLevelFatal)
 		}
@@ -262,6 +263,10 @@ func main() {
 	_, err = database.Init("writePersistentData", 0, map[string]any{"last_api_endpoint": config.AppConfig.Advanced.ApiEndpoint, "last_api_token": config.AppConfig.General.Token})
 	if err != nil {
 		L.Log(fmt.Sprintf("failed to write persistent data to database: %v", err), C.LogLevelFatal)
+	}
+	if config.AppConfig.Experimental.EnableActiveGC {
+		L.Log("experimental feature 'EnableActiveGC' is enabled, starting active garbage collection routine...", C.LogLevelInfo)
+		utils.ActiveGC() // 启动主动垃圾回收
 	}
 
 	updater.Idle() // 阻塞直到进程被关闭
