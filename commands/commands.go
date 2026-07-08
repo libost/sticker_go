@@ -266,7 +266,7 @@ func getstats(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	isAdmin, _ := checkAdmin(b, ctx, "getstats")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	// 这里可以添加管理员才能看到的统计信息
@@ -375,7 +375,7 @@ func resetUsage(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /reset 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "reset")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
@@ -390,7 +390,7 @@ func clearCache(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /clearcache 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "clearcache")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	err := os.RemoveAll(C.CacheDir)
@@ -413,7 +413,7 @@ func setcommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /setcommands 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "setcommands")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	supportedLanguages, _, err := I.GetAllSupportedLanguages()
@@ -502,7 +502,7 @@ func clearLogs(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /clearlogs 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "clearlogs")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
@@ -526,7 +526,7 @@ func restart(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /restart 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "restart")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
@@ -577,7 +577,7 @@ func shutdown(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /shutdown 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "shutdown")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
@@ -611,7 +611,7 @@ func adminCommands(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /admin 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "admin")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
@@ -759,7 +759,7 @@ func getAllDonates(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用这个命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "getalldonates")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	donates, err := database.Init("get_all_donates", ctx.EffectiveUser.Id, nil)
@@ -879,7 +879,7 @@ func upgrade(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用 /upgrade 命令，忽略群聊和频道中的命令
 	}
 	isAdmin, _ := checkAdmin(b, ctx, "upgrade")
-	if isAdmin != true {
+	if !isAdmin {
 		return nil
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
@@ -994,7 +994,7 @@ func query(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用这个命令，忽略群聊和频道中的命令
 	}
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-	if admin, _ := checkAdmin(b, ctx, "query"); admin != true {
+	if admin, _ := checkAdmin(b, ctx, "query"); !admin {
 		return nil
 	}
 	if len(ctx.Args()) == 1 {
@@ -1034,7 +1034,7 @@ func grace(b *gotgbot.Bot, ctx *ext.Context) error {
 		return nil // 仅允许在私聊中使用这个命令，忽略群聊和频道中的命令
 	}
 	if len(ctx.Args()) < 2 {
-		if admin, _ := checkAdmin(b, ctx, "grace"); admin != true {
+		if admin, _ := checkAdmin(b, ctx, "grace"); !admin {
 			_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.grace_desc_no_key", I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)), nil)
 			return err
 		} else {
