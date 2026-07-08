@@ -66,7 +66,7 @@
         "restart_desc": "🔄 Restarting the bot...",
         "shutdown_desc": "🤖 Are you sure you want to shut down the bot?\nThis action cannot be undone!",
         "shutdown_desc_systemd": "\nWarning: The current environment appears to be managed by systemd, and the bot may be restarted automatically after shutdown.",
-        "admin_commands_list": "Administrator Command List:\n/donaterecord - View all donation records\n/getstats - View statistics\n/query - Query user usage records\n/resetusage - Reset usage records\n/clearcache - Clear cache\n/setcommands - Set command list\n/clearlogs - Clear logs\n/upgrade - Update the bot\n/restart - Restart the bot\n/shutdown - Shut down the bot",
+        "admin_commands_list": "Administrator Command List:\n/donaterecord - View all donation records\n/getstats - View statistics\n/query - Query user usage records\n/resetusage - Reset usage records\n/clearcache - Clear cache\n/setcommands - Set command list\n/clearlogs - Clear logs\n/upgrade - Update the bot\n/forcegc - Force Garbage Collection\n/restart - Restart the bot\n/shutdown - Shut down the bot",
         "upgrade_desc_dev": "🤖 The current version is a development version and cannot check for updates.",
         "upgrade_desc_docker": "🤖 The current environment is Docker, and cannot check for updates.",
         "upgrade_desc_failed": "🤖 Failed to fetch the latest version information. Please try again later.",
@@ -88,7 +88,9 @@
         "grace_desc_expired_key": "🥺 The provided grace key has expired.",
         "grace_desc_use_success": "✅ Grace key used successfully!",
         "grace_desc_use_failed": "🤔 Failed to use grace key.",
-        "license_desc": "This project is licensed under the <a href='https://github.com/libost/sticker_go/blob/main/LICENSE'>MIT License</a> \n\nThis project depends on the following open-source projects: \n- <a href='https://github.com/PaulSonOfLars/gotgbot/blob/v2/LICENSE'>Golang Telegram Bot library</a>\n- <a href='https://github.com/goccy/go-yaml/blob/master/LICENSE'>YAML support for the Go language</a>\n- <a href='https://github.com/coreos/go-systemd/blob/main/LICENSE'>go-systemd</a>\n- <a href='https://github.com/creasty/defaults/blob/master/LICENSE'>defaults</a>\n- <a href='https://github.com/google/uuid/blob/master/LICENSE'>uuid</a>\n- <a href='https://github.com/minio/selfupdate/blob/master/LICENSE'>selfupdate</a>\n- <a href='https://github.com/robfig/cron/blob/v3/LICENSE'>cron</a>\n- <a href='https://cs.opensource.google/go/x/image/+/master:LICENSE'>image</a>\n- <a href='https://cs.opensource.google/go/x/net/+/master:LICENSE'>net</a>\n- <a href='https://gitlab.com/cznic/sqlite/-/blob/master/LICENSE'>sqlite</a>"
+        "license_desc": "This project is licensed under the <a href='https://github.com/libost/sticker_go/blob/main/LICENSE'>MIT License</a> \n\nThis project depends on the following open-source projects: \n- <a href='https://github.com/PaulSonOfLars/gotgbot/blob/v2/LICENSE'>Golang Telegram Bot library</a>\n- <a href='https://github.com/goccy/go-yaml/blob/master/LICENSE'>YAML support for the Go language</a>\n- <a href='https://github.com/coreos/go-systemd/blob/main/LICENSE'>go-systemd</a>\n- <a href='https://github.com/creasty/defaults/blob/master/LICENSE'>defaults</a>\n- <a href='https://github.com/google/uuid/blob/master/LICENSE'>uuid</a>\n- <a href='https://github.com/minio/selfupdate/blob/master/LICENSE'>selfupdate</a>\n- <a href='https://github.com/robfig/cron/blob/v3/LICENSE'>cron</a>\n- <a href='https://cs.opensource.google/go/x/image/+/master:LICENSE'>image</a>\n- <a href='https://cs.opensource.google/go/x/net/+/master:LICENSE'>net</a>\n- <a href='https://gitlab.com/cznic/sqlite/-/blob/master/LICENSE'>sqlite</a>",
+        "forcegc": "Force Garbage Collection",
+        "forcegc_success": "🧹 Garbage collection completed!"
     },
     "callback":{
         "donate_disabled": "😕 Donation is currently disabled, temporarily unable to accept donations.",

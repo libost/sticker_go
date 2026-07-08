@@ -67,7 +67,7 @@
         "restart_desc": "🔄 正在重启机器人...",
         "shutdown_desc": "🤖 真的要关闭机器人吗？\n此操作不可逆！",
         "shutdown_desc_systemd": "\n警告：当前环境似乎是 systemd 管理的服务，确认后机器人可能被再次启动。",
-        "admin_commands_list": "管理员命令列表：\n/donaterecord - 获取所有捐赠记录\n/getstats - 获取统计信息\n/query - 查询用户使用记录\n/resetusage - 重置使用记录\n/clearcache - 清理缓存\n/setcommands - 设置命令列表\n/clearlogs - 清除日志\n/upgrade - 更新机器人\n/restart - 重启机器人\n/shutdown - 关闭机器人",
+        "admin_commands_list": "管理员命令列表：\n/donaterecord - 获取所有捐赠记录\n/getstats - 获取统计信息\n/query - 查询用户使用记录\n/resetusage - 重置使用记录\n/clearcache - 清理缓存\n/setcommands - 设置命令列表\n/clearlogs - 清除日志\n/upgrade - 更新机器人\n/forcegc - 进行强制垃圾回收\n/restart - 重启机器人\n/shutdown - 关闭机器人",
         "upgrade_desc_dev": "🤖 当前版本为开发版本，无法检查更新。",
         "upgrade_desc_docker": "🤖 当前环境为 Docker，无法检查更新。",
         "upgrade_desc_failed": "🤖 无法获取最新版本信息，请稍后再试。",
@@ -90,7 +90,9 @@
         "grace_desc_use_success": "✅ 宽限密钥使用成功！",
         "grace_desc_use_failed": "🤔 使用宽限密钥失败。",
         "license": "开源许可证",
-        "license_desc": "本项目采用 <a href='https://github.com/libost/sticker_go/blob/main/LICENSE'>MIT 许可证</a> \n\n本项目依赖以下开源项目： \n- <a href='https://github.com/PaulSonOfLars/gotgbot/blob/v2/LICENSE'>Golang Telegram Bot library</a>\n- <a href='https://github.com/goccy/go-yaml/blob/master/LICENSE'>YAML support for the Go language</a>\n- <a href='https://github.com/coreos/go-systemd/blob/main/LICENSE'>go-systemd</a>\n- <a href='https://github.com/creasty/defaults/blob/master/LICENSE'>defaults</a>\n- <a href='https://github.com/google/uuid/blob/master/LICENSE'>uuid</a>\n- <a href='https://github.com/minio/selfupdate/blob/master/LICENSE'>selfupdate</a>\n- <a href='https://github.com/robfig/cron/blob/v3/LICENSE'>cron</a>\n- <a href='https://cs.opensource.google/go/x/image/+/master:LICENSE'>image</a>\n- <a href='https://cs.opensource.google/go/x/net/+/master:LICENSE'>net</a>\n- <a href='https://gitlab.com/cznic/sqlite/-/blob/master/LICENSE'>sqlite</a>"
+        "license_desc": "本项目采用 <a href='https://github.com/libost/sticker_go/blob/main/LICENSE'>MIT 许可证</a> \n\n本项目依赖以下开源项目： \n- <a href='https://github.com/PaulSonOfLars/gotgbot/blob/v2/LICENSE'>Golang Telegram Bot library</a>\n- <a href='https://github.com/goccy/go-yaml/blob/master/LICENSE'>YAML support for the Go language</a>\n- <a href='https://github.com/coreos/go-systemd/blob/main/LICENSE'>go-systemd</a>\n- <a href='https://github.com/creasty/defaults/blob/master/LICENSE'>defaults</a>\n- <a href='https://github.com/google/uuid/blob/master/LICENSE'>uuid</a>\n- <a href='https://github.com/minio/selfupdate/blob/master/LICENSE'>selfupdate</a>\n- <a href='https://github.com/robfig/cron/blob/v3/LICENSE'>cron</a>\n- <a href='https://cs.opensource.google/go/x/image/+/master:LICENSE'>image</a>\n- <a href='https://cs.opensource.google/go/x/net/+/master:LICENSE'>net</a>\n- <a href='https://gitlab.com/cznic/sqlite/-/blob/master/LICENSE'>sqlite</a>",
+        "forcegc": "进行强制垃圾回收",
+        "forcegc_success": "🧹 垃圾回收已完成！"
     },
     "callback":{
         "donate_disabled": "😕 捐赠功能已关闭，暂时无法接受捐赠。",
