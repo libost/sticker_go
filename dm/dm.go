@@ -50,7 +50,7 @@ func stickerLink(b *gotgbot.Bot, ctx *ext.Context, text string, langCode string)
 	}
 	err = callback.GetPack(b, ctx, packName, langCode, msg.GetMessageId())
 	var stickerPackLimitErr *stickers.StickerPackLimitError
-	if err != nil && !errors.Is(err, stickerPackLimitErr) && !errors.Is(err, C.ErrOutofQuota) {
+	if err != nil && !errors.Is(err, stickerPackLimitErr) && !errors.Is(err, C.ErrOutofQuota) && !errors.Is(err, utils.ErrFfmpegResourceBusy) {
 		_, _, _ = b.EditMessageText(I.GetLocalisedString("dm.pack_not_found", langCode), &gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: msg.GetMessageId(),

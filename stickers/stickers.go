@@ -135,6 +135,12 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				MessageId: sentMsg.MessageId,
 			})
 			return nil
+		} else if errors.Is(err, utils.ErrFfmpegResourceBusy) {
+			_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.ffmpeg_busy", langCode), &gotgbot.EditMessageTextOpts{
+				ChatId:    sentMsg.Chat.Id,
+				MessageId: sentMsg.MessageId,
+			})
+			return err
 		}
 		return err
 	}

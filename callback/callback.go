@@ -245,7 +245,7 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: msgId,
 		})
-		log.Log(fmt.Sprintf("User %d failed to download sticker pack %s", ctx.EffectiveUser.Id, packName), C.LogLevelError)
+		log.Log(fmt.Sprintf("User %d failed to download sticker pack %s, err: %v", ctx.EffectiveUser.Id, packName, err), C.LogLevelError)
 		return err
 	}
 	stopAction := make(chan struct{})

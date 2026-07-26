@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,9 +13,14 @@ import (
 
 	"github.com/libost/sticker_go/config"
 	"golang.org/x/image/webp"
+	"golang.org/x/sync/semaphore"
 )
 
 var ErrTgsConversionUnsupported = errors.New("tgs conversion unsupported by current Docker-based converter")
+
+var ErrFfmpegResourceBusy = errors.New("ffmpeg resource busy, please try again later")
+
+var ffmpegSemaphore = semaphore.NewWeighted(1) // 用于控制ffmpeg的并发执行，确保同一时间只有一个ffmpeg进程在运行
 
 func DecodeWebPToPNG(inputPath string) (filePath string, err error) {
 	f, err := os.Open(inputPath)
@@ -39,6 +45,10 @@ func DecodeWebPToPNG(inputPath string) (filePath string, err error) {
 }
 
 func DecodeWebMToGIF(inputPath string) (filePath string, err error) {
+	if err := ffmpegSemaphore.Acquire(context.Background(), 1); err != nil {
+		return "", ErrFfmpegResourceBusy
+	}
+	defer ffmpegSemaphore.Release(1)
 	filter := config.AppConfig.Advanced.FfmpegFilter
 	if filter == "" {
 		filter = "fps=30,scale=512:-1:flags=lanczos,split[s0][s1];[s0]palettegen=reserve_transparent=on:transparency_color=ffffff[p];[s1][p]paletteuse=alpha_threshold=128"
