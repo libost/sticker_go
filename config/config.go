@@ -70,7 +70,8 @@ type Config struct {
 		ApiEndpoint  string `yaml:"api_endpoint,omitempty"`
 	} `yaml:"advanced,omitempty"`
 	Experimental struct {
-		EnableActiveGC bool `yaml:"enable_active_gc" default:"false"`
+		EnableActiveGC            bool `yaml:"enable_active_gc" default:"false"`
+		EnableUsageCounterRefresh bool `yaml:"enable_usage_counter_refresh" default:"false"`
 	} `yaml:"experimental,omitempty"`
 }
 

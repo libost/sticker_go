@@ -12,6 +12,7 @@ import (
 	"time"
 
 	C "github.com/libost/sticker_go/constants"
+	DB "github.com/libost/sticker_go/database"
 	"github.com/libost/sticker_go/log"
 
 	"github.com/goccy/go-yaml"
@@ -125,7 +126,7 @@ func ActiveGC() {
 				log.Log("No active tasks, running garbage collection...", C.LogLevelDebug)
 				runtime.GC()
 			} else {
-				log.Log("Skipping GC as tasks are still running. CurrentTasks: "+fmt.Sprint(CurrentTasks), C.LogLevelInfo)
+				log.Log("Skipping GC as tasks are still running. CurrentTasks count: "+fmt.Sprint(CurrentTasks), C.LogLevelInfo)
 				continue
 			}
 		}
@@ -151,4 +152,46 @@ func Uptime() (float64, int64, int64, int64) {
 		return seconds, minutes, 0, 0
 	}
 	return time.Since(startTime).Seconds(), 0, 0, 0
+}
+
+func refreshUsage() {
+	log.Log("Refreshing usage counter...", C.LogLevelDebug)
+	_, err := DB.Init("refreshUsageCounter", 0, nil)
+	if err != nil {
+		log.Log("Failed to refresh usage counter: "+err.Error(), C.LogLevelError)
+	} else {
+		log.Log("Usage counter refreshed successfully.", C.LogLevelInfo)
+	}
+}
+
+func RefreshUsageCounter() {
+	var complete bool
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		refreshUsage() // Initial refresh on startup
+		for range ticker.C {
+			if CurrentTasks == 0 {
+				refreshUsage()
+				complete = true
+			} else {
+				log.Log("Postponing usage counter refresh as tasks are still running. CurrentTasks count: "+fmt.Sprint(CurrentTasks), C.LogLevelInfo)
+				for range 5 {
+					time.Sleep(30 * time.Minute)
+					if CurrentTasks != 0 {
+						log.Log("Still active tasks, postponing usage counter refresh. CurrentTasks count: "+fmt.Sprint(CurrentTasks), C.LogLevelInfo)
+						continue
+					}
+					log.Log("Refreshing usage counter after waiting...", C.LogLevelDebug)
+					refreshUsage()
+					complete = true
+					break
+				}
+			}
+			if !complete {
+				log.Log("Unable to refresh usage counter after multiple attempts due to active tasks. Waiting for next cycle...", C.LogLevelError)
+			}
+			complete = false
+		}
+	}()
 }

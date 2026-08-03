@@ -268,6 +268,10 @@ func main() {
 		L.Log("experimental feature 'EnableActiveGC' is enabled, starting active garbage collection routine...", C.LogLevelInfo)
 		utils.ActiveGC() // 启动主动垃圾回收
 	}
+	if config.AppConfig.Experimental.EnableUsageCounterRefresh {
+		L.Log("experimental feature 'EnableUsageCounterRefresh' is enabled, starting usage counter refresh routine...", C.LogLevelInfo)
+		utils.RefreshUsageCounter() // 启动使用计数器刷新
+	}
 
 	updater.Idle() // 阻塞直到进程被关闭
 }
