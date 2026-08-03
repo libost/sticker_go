@@ -211,9 +211,10 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		if userGroup["user_group"] == "sponsor" && config.AppConfig.Donation.BonusEnabled {
 			displayText += I.GetLocalisedString("general.donated", langCode)
 		}
-		_, _, _ = b.EditMessageText(displayText, &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: msgId,
+			Text:      displayText,
 		})
 		err := C.ErrOutofQuota
 		return err
@@ -227,23 +228,26 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		if limitErr.Limit == int(float64(config.AppConfig.General.LimitPerPack)*C.DonationBonusMultiplier) {
 			msg += fmt.Sprintf(I.GetLocalisedString("callback.getpack_toomany_bonus", langCode), C.DonationBonusMultiplier)
 		}
-		_, _, _ = b.EditMessageText(msg, &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: msgId,
+			Text:      msg,
 		})
 		log.Log(fmt.Sprintf("User %d attempted to download a sticker pack with too many stickers", ctx.EffectiveUser.Id), C.LogLevelWarn)
 		return err
 	} else if errors.Is(err, stickers.ErrUserConversionInProgress) {
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.conversion_in_progress", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: msgId,
+			Text:      I.GetLocalisedString("stickers.conversion_in_progress", langCode),
 		})
 		return nil
 	}
 	if err != nil {
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.getpack_failed", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: msgId,
+			Text:      I.GetLocalisedString("callback.getpack_failed", langCode),
 		})
 		log.Log(fmt.Sprintf("User %d failed to download sticker pack %s, err: %v", ctx.EffectiveUser.Id, packName, err), C.LogLevelError)
 		return err
@@ -270,21 +274,21 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 	}()
 	defer stopActionLoop()
 	if len(zipPaths) > 1 {
-		_, _, _ = b.EditMessageText(
-			fmt.Sprintf(I.GetLocalisedString("callback.getpack_toolarge", langCode), len(zipPaths)),
-			&gotgbot.EditMessageTextOpts{
-				ChatId:    ctx.EffectiveChat.Id,
-				MessageId: msgId,
-			},
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
+			ChatId:    ctx.EffectiveChat.Id,
+			MessageId: msgId,
+			Text:      fmt.Sprintf(I.GetLocalisedString("callback.getpack_toolarge", langCode), len(zipPaths)),
+		},
 		)
 	}
 	for _, zipPath := range zipPaths {
 		err = sendZipDocumentWithRetry(b, ctx.EffectiveUser.Id, zipPath)
 		if err != nil {
 			removeZipFiles(zipPaths)
-			_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.getpack_failed", langCode), &gotgbot.EditMessageTextOpts{
+			_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 				ChatId:    ctx.EffectiveChat.Id,
 				MessageId: msgId,
+				Text:      I.GetLocalisedString("callback.getpack_failed", langCode),
 			})
 			os.RemoveAll(fmt.Sprintf("%s/%d", C.CacheDir, ctx.EffectiveUser.Id))
 			stopActionLoop()
@@ -305,10 +309,10 @@ func GetPack(b *gotgbot.Bot, ctx *ext.Context, packName string, langCode string,
 		}
 	}
 	_, _, _ = b.EditMessageText(
-		displayText,
 		&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: msgId,
+			Text:      displayText,
 			ParseMode: "HTML",
 		},
 	)
@@ -331,9 +335,10 @@ func getPackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	_, _, err = b.EditMessageText(I.GetLocalisedString("callback.getpack_answer", langCode), &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		Text:      I.GetLocalisedString("callback.getpack_answer", langCode),
 	})
 	if err != nil {
 		return err
@@ -362,22 +367,25 @@ func clearLogsHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		err := utils.RemoveDirContents(logDir)
 		if err != nil {
 			log.Log(fmt.Sprintf("User %d failed to clear logs: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-			_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.clearlogs_failed", langCode), &gotgbot.EditMessageTextOpts{
+			_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 				ChatId:    ctx.EffectiveChat.Id,
 				MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+				Text:      I.GetLocalisedString("callback.clearlogs_failed", langCode),
 			})
 			return err
 		}
 		log.Log(fmt.Sprintf("User %d cleared all logs", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.clearlogs_success", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.clearlogs_success", langCode),
 		})
 		return nil
 	}
-	_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.clearlogs_cancelled", langCode), &gotgbot.EditMessageTextOpts{
+	_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		Text:      I.GetLocalisedString("callback.clearlogs_cancelled", langCode),
 	})
 	log.Log(fmt.Sprintf("User %d cancelled log clearing", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return nil
@@ -394,9 +402,10 @@ func shutdownHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if result == "confirm" {
 		log.Log(fmt.Sprintf("User %d initiated shutdown", ctx.EffectiveUser.Id), C.LogLevelWarn)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.shutdown_confirmed", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.shutdown_confirmed", langCode),
 		})
 		if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 			proc, findErr := os.FindProcess(os.Getpid())
@@ -411,9 +420,10 @@ func shutdownHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		log.Log(fmt.Sprintf("User %d cancelled shutdown", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.shutdown_cancelled", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.shutdown_cancelled", langCode),
 		})
 	}
 	return nil
@@ -431,26 +441,29 @@ func refundApplyHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	ok, err := b.RefundStarPayment(ctx.EffectiveUser.Id, telegramPaymentChargeID, &gotgbot.RefundStarPaymentOpts{})
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to apply for refund: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.refund_failed", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.refund_failed", langCode),
 		})
 		return err
 	}
 	if ok {
 		log.Log(fmt.Sprintf("User %d successfully applied for refund", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.refund_success", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.refund_success", langCode),
 		})
 		database.Init("refund", ctx.EffectiveUser.Id, map[string]any{
 			"telegram_charge_id": telegramPaymentChargeID,
 		})
 	} else {
 		log.Log(fmt.Sprintf("User %d failed to apply for refund: unknown error", ctx.EffectiveUser.Id), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.refund_failed", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.refund_failed", langCode),
 		})
 	}
 	return nil
@@ -466,15 +479,17 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
 	if callbackData == "upgrade_false" {
 		log.Log(fmt.Sprintf("User %d cancelled upgrade", ctx.EffectiveUser.Id), C.LogLevelInfo)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_cancelled", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_cancelled", langCode),
 		})
 		return nil
 	}
-	_, _, err = b.EditMessageText(I.GetLocalisedString("callback.upgrade_processing", langCode), &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		Text:      I.GetLocalisedString("callback.upgrade_processing", langCode),
 	})
 	if err != nil {
 		return err
@@ -499,9 +514,10 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	currentPath, err := os.Executable()
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to get executable path before update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_path", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_path", langCode),
 		})
 		return err
 	}
@@ -514,9 +530,10 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		log.Log(fmt.Sprintf("User %d failed to download latest release asset: HTTP %d", ctx.EffectiveUser.Id, resp.StatusCode), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_generic", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_generic", langCode),
 		})
 		return fmt.Errorf("failed to download latest release asset: HTTP %d", resp.StatusCode)
 	}
@@ -524,27 +541,30 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	checkSumResp, err := http.Get(checkSumURL)
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to download checksums file: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_generic", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_generic", langCode),
 		})
 		return err
 	}
 	defer checkSumResp.Body.Close()
 	if checkSumResp.StatusCode != http.StatusOK {
 		log.Log(fmt.Sprintf("User %d failed to download checksums file: HTTP %d", ctx.EffectiveUser.Id, checkSumResp.StatusCode), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_generic", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_generic", langCode),
 		})
 		return fmt.Errorf("failed to download checksums file: HTTP %d", checkSumResp.StatusCode)
 	}
 	checksumsData, err := io.ReadAll(checkSumResp.Body)
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to read checksums file: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_generic", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_generic", langCode),
 		})
 		return err
 	}
@@ -552,9 +572,10 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	checksum, err := parseSHA256FromChecksums(checksumsData, execname)
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to parse checksum for %s: %v", ctx.EffectiveUser.Id, execname, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_checksum", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_checksum", langCode),
 		})
 		return err
 	}
@@ -562,16 +583,18 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	err = selfupdate.Apply(resp.Body, selfupdate.Options{Checksum: checksum})
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to apply update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_apply", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_apply", langCode),
 		})
 		return err
 	}
 	log.Log(fmt.Sprintf("User %d successfully updated the bot", ctx.EffectiveUser.Id), C.LogLevelInfo)
-	_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_success", langCode), &gotgbot.EditMessageTextOpts{
+	_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		Text:      I.GetLocalisedString("callback.upgrade_success", langCode),
 	})
 	_, exists := os.LookupEnv("INVOCATION_ID")
 	if exists {
@@ -586,9 +609,10 @@ func upgradeHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	err = cmd.Start()
 	if err != nil {
 		log.Log(fmt.Sprintf("User %d failed to restart the bot after update: %v", ctx.EffectiveUser.Id, err), C.LogLevelError)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("callback.upgrade_failed_restart", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    ctx.EffectiveChat.Id,
 			MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+			Text:      I.GetLocalisedString("callback.upgrade_failed_restart", langCode),
 		})
 		return err
 	}
@@ -634,9 +658,10 @@ func setLanguageHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Log(fmt.Sprintf("User %d failed to set language to %s: %v", ctx.EffectiveUser.Id, langCode, err), C.LogLevelError)
 		return err
 	}
-	_, _, err = b.EditMessageText(I.GetLocalisedString("callback.setlang_success", langCode), &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:    ctx.EffectiveChat.Id,
 		MessageId: ctx.CallbackQuery.Message.GetMessageId(),
+		Text:      I.GetLocalisedString("callback.setlang_success", langCode),
 	})
 	if err != nil {
 		return err

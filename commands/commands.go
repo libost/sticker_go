@@ -693,9 +693,10 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		},
 	}
-	_, _, err = b.EditMessageText(I.GetLocalisedString("commands.get_desc_success", langCode), &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:      msg.Chat.Id,
 		MessageId:   msg.MessageId,
+		Text:        I.GetLocalisedString("commands.get_desc_success", langCode),
 		ReplyMarkup: inlineKeyboard,
 	})
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
