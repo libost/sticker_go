@@ -7,7 +7,7 @@ TIME ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 LDFLAGS=-ldflags "-X github.com/libost/sticker_go/version.Version=$(VERSION) -X github.com/libost/sticker_go/version.GitCommit=$(COMMIT) -X github.com/libost/sticker_go/version.BuildTime=$(TIME)"
 
-.PHONY: all help tidy vet test build build-linux-x64 build-linux-x64-v3 build-linux-arm64 build-darwin-x64 build-darwin-x64-v3 build-darwin-arm64 build-windows-x64 build-windows-x64-v3 build-windows-arm64 clean
+.PHONY: all help tidy vet test build build-linux-x64 build-linux-x64-v3 build-linux-arm64 build-darwin-x64 build-darwin-x64-v3 build-darwin-arm64 build-windows-x64 build-windows-x64-v3 build-windows-arm64 clean clean-pprof
 
 all: tidy vet test build
 	
@@ -28,6 +28,7 @@ help:
 	@echo "  build-windows-x64-v3 - Build for Windows (x64) with v3 optimizations"
 	@echo "  build-windows-arm64 - Build for Windows (arm64)"
 	@echo "  clean     - Remove the build directory"
+	@echo "  clean-pprof - Remove pprof files"
 
 tidy:
 	go mod tidy
@@ -80,6 +81,9 @@ build-windows-x64-v3:
 build-windows-arm64:
 	mkdir -p $(BUILD_DIR)/windows-arm64
 	GOOS=windows GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/windows-arm64/$(BINARY_NAME)-windows-arm64.exe .
+
+clean-pprof:
+	rm -rf ./*.pprof
 
 clean:
 	rm -rf $(BUILD_DIR)

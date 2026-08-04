@@ -57,6 +57,7 @@ func AddHandlers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("query", query))
 	dispatcher.AddHandler(handlers.NewCommand("grace", grace))
 	dispatcher.AddHandler(handlers.NewCommand("license", license))
+	dispatcher.AddHandler(handlers.NewCommand("forcegc", forceGC))
 }
 
 func checkAdmin(b *gotgbot.Bot, ctx *ext.Context, command string) (bool, error) {
@@ -692,9 +693,10 @@ func getCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		},
 	}
-	_, _, err = b.EditMessageText(I.GetLocalisedString("commands.get_desc_success", langCode), &gotgbot.EditMessageTextOpts{
+	_, _, err = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:      msg.Chat.Id,
 		MessageId:   msg.MessageId,
+		Text:        I.GetLocalisedString("commands.get_desc_success", langCode),
 		ReplyMarkup: inlineKeyboard,
 	})
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
@@ -1080,5 +1082,20 @@ func license(b *gotgbot.Bot, ctx *ext.Context) error {
 	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.license_desc", langCode), &gotgbot.SendMessageOpts{
 		ParseMode: "HTML",
 	})
+	return err
+}
+
+func forceGC(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type != "private" {
+		return nil // 仅允许在私聊中使用 /forcegc 命令，忽略群聊和频道中的命令
+	}
+	isAdmin, _ := checkAdmin(b, ctx, "forcegc")
+	if !isAdmin {
+		return nil
+	}
+	langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
+	runtime.GC()
+	_, err := ctx.EffectiveMessage.Reply(b, I.GetLocalisedString("commands.forcegc_success", langCode), nil)
+	log.Log(fmt.Sprintf("User %d triggered /forcegc", ctx.EffectiveUser.Id), C.LogLevelInfo)
 	return err
 }

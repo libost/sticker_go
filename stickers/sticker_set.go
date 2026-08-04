@@ -107,9 +107,10 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 		progressNow++
 		if progressNow == 1 || progressNow%5 == 0 || progressNow == packLength {
 			langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-			_, _, _ = b.EditMessageText(fmt.Sprintf(I.GetLocalisedString("stickers.pack_progress", langCode), stickerSetName, progressNow, packLength), &gotgbot.EditMessageTextOpts{
+			_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 				ChatId:    uid,
 				MessageId: messageId,
+				Text:      fmt.Sprintf(I.GetLocalisedString("stickers.pack_progress", langCode), stickerSetName, progressNow, packLength),
 			})
 		}
 
@@ -192,9 +193,10 @@ func GetStickerPack(b *gotgbot.Bot, stickerSetName string, uid int64, messageId 
 	}
 	if tgsContained && config.AppConfig.General.TgsSupport {
 		langCode := I.LangCodePrefer(ctx.EffectiveUser.Id, ctx.EffectiveUser.LanguageCode)
-		_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.tgs_converting", langCode), &gotgbot.EditMessageTextOpts{
+		_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 			ChatId:    uid,
 			MessageId: messageId,
+			Text:      I.GetLocalisedString("stickers.tgs_converting", langCode),
 		})
 		err = utils.DecodeTgsToGIF(tempDir)
 		if err != nil {

@@ -55,7 +55,7 @@ var (
 
 func getDB() (*sql.DB, error) {
 	dbOnce.Do(func() {
-		db, dbErr = sql.Open("sqlite", C.DatabaseFile)
+		db, dbErr = sql.Open("sqlite", C.DatabaseFile+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)")
 		if dbErr != nil {
 			return
 		}
@@ -645,6 +645,14 @@ func writePersistentData(conn *sql.DB, other map[string]any) (map[string]any, er
 	return map[string]any{"last_api_endpoint": lastApiEndpoint, "last_api_token": lastApiToken}, nil
 }
 
+func refreshUsageCounterCase(conn *sql.DB) (map[string]any, error) {
+	_, err := conn.Exec("UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = unixepoch() WHERE unixepoch() - last_cycle_starts_at >= 24 * 3600")
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{}, nil
+}
+
 func Init(request string, id int64, other map[string]any) (map[string]any, error) {
 	conn, err := getDB()
 	if err != nil {
@@ -694,6 +702,8 @@ func Init(request string, id int64, other map[string]any) (map[string]any, error
 		return getPersistentData(conn)
 	case "writePersistentData":
 		return writePersistentData(conn, other)
+	case "refreshUsageCounter":
+		return refreshUsageCounterCase(conn)
 	default:
 		return nil, fmt.Errorf("unsupported request: %s", request)
 	}

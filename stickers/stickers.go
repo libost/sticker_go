@@ -130,11 +130,19 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	filePath, cleanup, err := GetSticker(b, sticker, ctx.EffectiveUser.Id, config.AppConfig)
 	if err != nil {
 		if errors.Is(err, ErrUserConversionInProgress) {
-			_, _, _ = b.EditMessageText(I.GetLocalisedString("stickers.conversion_in_progress", langCode), &gotgbot.EditMessageTextOpts{
+			_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 				ChatId:    sentMsg.Chat.Id,
 				MessageId: sentMsg.MessageId,
+				Text:      I.GetLocalisedString("stickers.conversion_in_progress", langCode),
 			})
 			return nil
+		} else if errors.Is(err, utils.ErrFfmpegResourceBusy) {
+			_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
+				ChatId:    sentMsg.Chat.Id,
+				MessageId: sentMsg.MessageId,
+				Text:      I.GetLocalisedString("stickers.ffmpeg_busy", langCode),
+			})
+			return err
 		}
 		return err
 	}
@@ -160,9 +168,10 @@ func stickerHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	database.Init("usageRecord", ctx.EffectiveUser.Id, map[string]any{"usage": 1})
-	_, _, _ = b.EditMessageText(displayText, &gotgbot.EditMessageTextOpts{
+	_, _, _ = b.EditMessageText(&gotgbot.EditMessageTextOpts{
 		ChatId:      sentMsg.Chat.Id,
 		MessageId:   sentMsg.MessageId,
+		Text:        displayText,
 		ParseMode:   "HTML",
 		ReplyMarkup: inlineKeyboard,
 	})
