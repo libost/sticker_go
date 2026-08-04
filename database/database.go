@@ -55,7 +55,7 @@ var (
 
 func getDB() (*sql.DB, error) {
 	dbOnce.Do(func() {
-		db, dbErr = sql.Open("sqlite", C.DatabaseFile)
+		db, dbErr = sql.Open("sqlite", C.DatabaseFile+"?_pragma=journal_mode(WAL)")
 		if dbErr != nil {
 			return
 		}
