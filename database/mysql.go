@@ -1,19 +1,23 @@
+//go:build mysql
+
 package database
 
 import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/libost/sticker_go/config"
 	C "github.com/libost/sticker_go/constants"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-//go:embed schema.sql
+//go:embed schema_mysql.sql
 var schemaFS embed.FS
 
 var (
@@ -22,54 +26,45 @@ var (
 	dbErr  error
 )
 
-/*
-返回data类型示例：
-{//init
-	"user_id": 123456789,
-	"exists": true
+func mysqlDSN() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local",
+		config.AppConfig.MySQL.Username,
+		config.AppConfig.MySQL.Password,
+		config.AppConfig.MySQL.Host,
+		config.AppConfig.MySQL.Port,
+		"sticker_go",
+	)
 }
-{//usage
-	"user_id": 123456789,
-	"exists": true,
-	"usage": 100,
-	"last_cycle_starts_at": "1800000000",// 这是一个 Unix 时间戳，表示上一个周期的开始时间
-}
-{//user_group
-	"user_id": 123456789,
-	"exists": true,
-	"user_group": "user/admin/sponsor"
-}
-{//stats
-	"user_id": 123456789,
-	"exists": true,
-	"stats": {
-		"total_users": 1000,
-		"total_usage": 500
+
+func applySchema(conn *sql.DB) error {
+	schema, err := schemaFS.ReadFile("schema_mysql.sql")
+	if err != nil {
+		return err
 	}
+	for stmt := range strings.SplitSeq(string(schema), ";") {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+		if _, err := conn.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
-{//create
-	"user_id": 123456789,
-	"exists": false
-}
-*/
 
 func getDB() (*sql.DB, error) {
 	dbOnce.Do(func() {
-		db, dbErr = sql.Open("sqlite", C.DatabaseFile+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)")
+		db, dbErr = sql.Open("mysql", mysqlDSN())
 		if dbErr != nil {
 			return
 		}
-
-		schema, err := schemaFS.ReadFile("schema.sql")
-		if err != nil {
-			dbErr = err
+		db.SetMaxIdleConns(5)
+		db.SetMaxOpenConns(10)
+		if dbErr = db.Ping(); dbErr != nil {
 			return
 		}
-
-		if _, err := db.Exec(string(schema)); err != nil {
-			dbErr = err
-			return
-		}
+		dbErr = applySchema(db)
 	})
 
 	if dbErr != nil {
@@ -78,11 +73,32 @@ func getDB() (*sql.DB, error) {
 	return db, nil
 }
 
+func ensureLanguageCodeColumn(conn *sql.DB) error {
+	var count int64
+	err := conn.QueryRow(`
+		SELECT COUNT(1)
+		FROM information_schema.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE()
+		  AND TABLE_NAME = 'USERPOOL'
+		  AND COLUMN_NAME = 'language_code'
+	`).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		_, err = conn.Exec("ALTER TABLE USERPOOL ADD COLUMN language_code VARCHAR(32) NULL")
+		return err
+	}
+	return nil
+}
+
 func createUserIfNotExists(conn *sql.DB, id int64) error {
 	_, err := conn.Exec(
-		"INSERT OR IGNORE INTO USERPOOL (user_id, obfu_id) VALUES (?, ?)",
+		"INSERT IGNORE INTO USERPOOL (user_id, obfu_id, created_at, last_cycle_starts_at) VALUES (?, ?, ?, ?)",
 		id,
 		fmt.Sprintf("u_%d_%d", id, time.Now().UnixNano()),
+		time.Now().Unix(),
+		time.Now().Unix(),
 	)
 	return err
 }
@@ -91,9 +107,9 @@ func normalizeUsageCycle(conn *sql.DB, id int64) error {
 	_, err := conn.Exec(
 		`UPDATE USERPOOL
 		 SET usage_count = 0,
-		     last_cycle_starts_at = unixepoch()
+		     last_cycle_starts_at = UNIX_TIMESTAMP()
 		 WHERE user_id = ?
-		   AND unixepoch() - last_cycle_starts_at >= 30 * 24 * 3600`,
+		   AND UNIX_TIMESTAMP() - last_cycle_starts_at >= 30 * 24 * 3600`,
 		id,
 	)
 	return err
@@ -112,6 +128,8 @@ func toUsageInt(other map[string]any) (int, error) {
 		return n, nil
 	case int64:
 		return int(n), nil
+	case int32:
+		return int(n), nil
 	case float64:
 		return int(n), nil
 	default:
@@ -119,15 +137,37 @@ func toUsageInt(other map[string]any) (int, error) {
 	}
 }
 
+func toAmountInt64(other map[string]any) (int64, error) {
+	if other == nil {
+		return 0, fmt.Errorf("missing amount")
+	}
+	v, ok := other["amount"]
+	if !ok {
+		return 0, fmt.Errorf("missing amount")
+	}
+	switch n := v.(type) {
+	case int:
+		return int64(n), nil
+	case int64:
+		return n, nil
+	case int32:
+		return int64(n), nil
+	case float64:
+		return int64(n), nil
+	default:
+		return 0, fmt.Errorf("invalid amount type")
+	}
+}
+
 func logIntoDonateLogs(conn *sql.DB, id int64, amount int64, payload string) error {
 	_, err := conn.Exec(
-		"INSERT INTO DONATION_LOGS (user_id, amount, timestamp, payload, telegram_payment_charge_id, provider_payment_charge_id) VALUES (?, ?, ?, ?, ?, ?)",
+		"INSERT INTO DONATION_LOGS (user_id, amount, timestamp, payload, telegram_payment_charge_id, provider_payment_charge_id, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')",
 		id,
 		amount,
 		time.Now().Unix(),
 		payload,
-		"pending", // 这里的 Telegram 支付交易 ID 需要在实际处理支付成功的回调时更新
-		"pending", // 这里的支付提供商交易 ID 需要在实际处理支付成功的回调时更新
+		"pending",
+		"pending",
 	)
 	return err
 }
@@ -151,37 +191,8 @@ func logIntoDonateLogsSuccess(conn *sql.DB, id int64, payload string, telegramCh
 
 func initCase(id int64, conn *sql.DB) (map[string]any, error) {
 	data := map[string]any{"user_id": id, "exists": false}
-	// 从这里往下都是兼容性处理，确保即使之前的版本没有 language_code 字段也能正常使用，并且在访问时能够正确返回默认值。
-	rows, err := conn.Query("PRAGMA table_info(USERPOOL)")
-	if err != nil {
+	if err := ensureLanguageCodeColumn(conn); err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	hasLanguageCode := false
-	for rows.Next() {
-		var cid int
-		var name string
-		var colType string
-		var notNull int
-		var defaultValue sql.NullString
-		var pk int
-		if err := rows.Scan(&cid, &name, &colType, &notNull, &defaultValue, &pk); err != nil {
-			return nil, err
-		}
-		if name == "language_code" {
-			hasLanguageCode = true
-			break
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if !hasLanguageCode {
-		if _, err := conn.Exec("ALTER TABLE USERPOOL ADD COLUMN language_code TEXT"); err != nil {
-			return nil, err
-		}
 	}
 
 	if id > 0 {
@@ -257,7 +268,7 @@ func usageRecordCase(id int64, conn *sql.DB, other map[string]any) (map[string]a
 	}
 	weekday := time.Now().Weekday().String()
 	_, err = conn.Exec(
-		"INSERT INTO STATISTICS (weekday, daily_usage_count) VALUES (?, ?) ON CONFLICT(weekday) DO UPDATE SET daily_usage_count = daily_usage_count + ?",
+		"INSERT INTO STATISTICS (weekday, daily_usage_count) VALUES (?, ?) ON DUPLICATE KEY UPDATE daily_usage_count = daily_usage_count + ?",
 		weekday,
 		usage,
 		usage,
@@ -322,7 +333,7 @@ func setGroupCase(id int64, conn *sql.DB, other map[string]any) (map[string]any,
 
 func resetUsageCase(id int64, conn *sql.DB) (map[string]any, error) {
 	data := map[string]any{"user_id": id, "exists": true}
-	if _, err := conn.Exec("UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = unixepoch() WHERE user_id = ?", id); err != nil {
+	if _, err := conn.Exec("UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = UNIX_TIMESTAMP() WHERE user_id = ?", id); err != nil {
 		return nil, err
 	}
 	data["exists"] = true
@@ -333,9 +344,9 @@ func resetUsageCase(id int64, conn *sql.DB) (map[string]any, error) {
 
 func donateInitCase(id int64, conn *sql.DB, other map[string]any) (map[string]any, error) {
 	data := map[string]any{"user_id": id, "exists": true}
-	amount, ok := other["amount"].(int64)
-	if !ok {
-		return nil, fmt.Errorf("missing amount")
+	amount, err := toAmountInt64(other)
+	if err != nil {
+		return nil, err
 	}
 	payload, ok := other["payload"].(string)
 	if !ok {
@@ -379,18 +390,17 @@ func donateSuccessCase(id int64, conn *sql.DB, other map[string]any) (map[string
 
 func refundCase(id int64, conn *sql.DB, other map[string]any) (map[string]any, error) {
 	data := map[string]any{"user_id": id, "exists": true}
-	telegramChargeID, ok := other["telegram_charge_id"].(string)
+	telegamChargeID, ok := other["telegram_charge_id"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing telegram_charge_id")
 	}
 	_, err := conn.Exec(
 		"UPDATE DONATION_LOGS SET status = 'refunded' WHERE telegram_payment_charge_id = ?",
-		telegramChargeID,
+		telegamChargeID,
 	)
 	if err != nil {
 		return data, err
 	}
-	// 检查该用户是否仍有成功捐赠；如果没有则将其从 sponsor 降级为 user。
 	var successCount int64
 	err = conn.QueryRow(
 		"SELECT COUNT(1) FROM DONATION_LOGS WHERE user_id = ? AND status = 'success'",
@@ -486,13 +496,11 @@ func clearWeeklyStatsCase(conn *sql.DB) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.Exec("DELETE FROM STATISTICS")
-	if err != nil {
+	if _, err = tx.Exec("DELETE FROM STATISTICS"); err != nil {
 		_ = tx.Rollback()
 		return nil, err
 	}
-	_, err = tx.Exec("INSERT INTO LAST_CLEANUP (id, last_cleanup_at) VALUES (1, unixepoch()) ON CONFLICT(id) DO UPDATE SET last_cleanup_at = unixepoch()")
-	if err != nil {
+	if _, err = tx.Exec("INSERT INTO LAST_CLEANUP (id, last_cleanup_at) VALUES (1, UNIX_TIMESTAMP()) ON DUPLICATE KEY UPDATE last_cleanup_at = UNIX_TIMESTAMP()"); err != nil {
 		_ = tx.Rollback()
 		return nil, err
 	}
@@ -504,22 +512,22 @@ func clearWeeklyStatsCase(conn *sql.DB) (map[string]any, error) {
 
 func getLastCleanupTimeCase(conn *sql.DB) (map[string]any, error) {
 	data := map[string]any{}
-	var lastCleanup int64
+	var lastCleanup sql.NullInt64
 	err := conn.QueryRow("SELECT last_cleanup_at FROM LAST_CLEANUP WHERE id = 1").Scan(&lastCleanup)
-	if err == sql.ErrNoRows {
+	if err == sql.ErrNoRows || !lastCleanup.Valid {
 		data["last_cleanup_at"] = float64(0)
 		return data, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	data["last_cleanup_at"] = float64(lastCleanup)
+	data["last_cleanup_at"] = float64(lastCleanup.Int64)
 	return data, nil
 }
 
 func languageCodeCase(id int64, conn *sql.DB, other map[string]any) (map[string]any, error) {
 	data := map[string]any{"user_id": id, "exists": true}
-	requestType := other["type"]
+	requestType, _ := other["type"].(string)
 	switch requestType {
 	case "get":
 		var languageCode sql.NullString
@@ -569,27 +577,24 @@ func queryUserUsage(id int64, conn *sql.DB) (map[string]any, error) {
 }
 
 func genGraceKey(id int64, conn *sql.DB) (map[string]any, error) {
-	// Implementation for generating grace key
-	uuid := uuid.New().String()
+	key := uuid.New().String()
 	_, err := conn.Exec(
-		"INSERT INTO GRACE_KEY (operator, uuid, generated_at) VALUES (?, ?, unixepoch())",
+		"INSERT INTO GRACE_KEY (operator, uuid, generated_at, expires_at) VALUES (?, ?, ?, ?)",
 		id,
-		uuid,
+		key,
+		time.Now().Unix(),
+		time.Now().Unix()+3600,
 	)
-	return map[string]any{"grace_key": uuid}, err
+	return map[string]any{"grace_key": key}, err
 }
 
 func useGraceKey(id int64, conn *sql.DB, other map[string]any) (map[string]any, error) {
-	// Implementation for using grace key
 	graceKey, ok := other["grace_key"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing grace_key")
 	}
 	var expiredAt int64
-	err := conn.QueryRow(
-		"SELECT expires_at FROM GRACE_KEY WHERE uuid = ?",
-		graceKey,
-	).Scan(&expiredAt)
+	err := conn.QueryRow("SELECT expires_at FROM GRACE_KEY WHERE uuid = ?", graceKey).Scan(&expiredAt)
 	if err == sql.ErrNoRows {
 		return nil, C.ErrInvalidGraceKey
 	}
@@ -599,18 +604,10 @@ func useGraceKey(id int64, conn *sql.DB, other map[string]any) (map[string]any, 
 	if time.Now().Unix() > expiredAt {
 		return nil, C.ErrGraceKeyExpired
 	}
-	_, err = conn.Exec(
-		"UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = unixepoch() WHERE user_id = ?",
-		id,
-	)
-	if err != nil {
+	if _, err = conn.Exec("UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = UNIX_TIMESTAMP() WHERE user_id = ?", id); err != nil {
 		return nil, err
 	}
-	_, err = conn.Exec(
-		"DELETE FROM GRACE_KEY WHERE uuid = ?",
-		graceKey,
-	)
-	if err != nil {
+	if _, err = conn.Exec("DELETE FROM GRACE_KEY WHERE uuid = ?", graceKey); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -629,6 +626,9 @@ func getPersistentData(conn *sql.DB) (map[string]any, error) {
 	if !lastApiEndpoint.Valid {
 		lastApiEndpoint.String = ""
 	}
+	if !lastApiToken.Valid {
+		lastApiToken.String = ""
+	}
 	return map[string]any{"last_api_endpoint": lastApiEndpoint.String, "last_api_token": lastApiToken.String}, nil
 }
 
@@ -638,7 +638,11 @@ func writePersistentData(conn *sql.DB, other map[string]any) (map[string]any, er
 	if !ok {
 		return nil, fmt.Errorf("missing last_api_token")
 	}
-	_, err := conn.Exec("INSERT OR REPLACE INTO PERSISTENT_DATA (id, last_api_endpoint, last_api_token) VALUES (1, ?, ?)", lastApiEndpoint, lastApiToken)
+	_, err := conn.Exec(
+		"INSERT INTO PERSISTENT_DATA (id, last_api_endpoint, last_api_token) VALUES (1, ?, ?) ON DUPLICATE KEY UPDATE last_api_endpoint = VALUES(last_api_endpoint), last_api_token = VALUES(last_api_token)",
+		lastApiEndpoint,
+		lastApiToken,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +650,7 @@ func writePersistentData(conn *sql.DB, other map[string]any) (map[string]any, er
 }
 
 func refreshUsageCounterCase(conn *sql.DB) (map[string]any, error) {
-	_, err := conn.Exec("UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = unixepoch() WHERE unixepoch() - last_cycle_starts_at >= 24 * 3600")
+	_, err := conn.Exec("UPDATE USERPOOL SET usage_count = 0, last_cycle_starts_at = UNIX_TIMESTAMP() WHERE UNIX_TIMESTAMP() - last_cycle_starts_at >= 24 * 3600")
 	if err != nil {
 		return nil, err
 	}

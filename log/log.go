@@ -17,8 +17,14 @@ import (
 
 func Log(message string, level C.LogLevel) {
 	cf := config.AppConfig
+	logLevel := "INFO"
+	if cf != nil {
+		if cf.Log.Level != "" {
+			logLevel = cf.Log.Level
+		}
+	}
 	var systemdLevel string
-	switch cf.Log.Level {
+	switch logLevel {
 	case "DEBUG":
 		systemdLevel = "<7>"
 		if level.Number < C.LogLevelDebug.Number {
@@ -91,8 +97,11 @@ func logToFile(message string) {
 }
 
 func timeNow() (string, bool) {
-	cf := config.AppConfig
-	timestamp, err := C.CurrentTime(cf.Misc.Timezone)
+	timezone := ""
+	if cf := config.AppConfig; cf != nil {
+		timezone = cf.Misc.Timezone
+	}
+	timestamp, err := C.CurrentTime(timezone)
 	var isTimeRight bool
 	if err != nil {
 		isTimeRight = false

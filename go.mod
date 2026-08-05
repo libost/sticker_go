@@ -9,6 +9,7 @@ require github.com/goccy/go-yaml v1.19.2
 require (
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/creasty/defaults v1.8.0
+	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/minio/selfupdate v0.6.0
 	github.com/robfig/cron/v3 v3.0.1
@@ -17,6 +18,8 @@ require (
 	golang.org/x/sync v0.22.0
 	modernc.org/sqlite v1.56.0
 )
+
+require filippo.io/edwards25519 v1.2.0 // indirect
 
 require (
 	aead.dev/minisign v0.3.0 // indirect

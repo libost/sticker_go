@@ -61,6 +61,13 @@ type Config struct {
 			Max int `yaml:"max" default:"10000"`
 		} `yaml:"amount_restrict,omitempty"`
 	} `yaml:"donation,omitempty"`
+	MySQL struct {
+		Enabled  bool   `yaml:"enabled" default:"false"`
+		Host     string `yaml:"host,omitempty"`
+		Port     int    `yaml:"port,omitempty"`
+		Username string `yaml:"username,omitempty"`
+		Password string `yaml:"password,omitempty"`
+	} `yaml:"mysql,omitempty"`
 	Misc struct {
 		Timezone string `yaml:"timezone" default:"Asia/Shanghai"`
 	} `yaml:"misc,omitempty"`
