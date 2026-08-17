@@ -12,7 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/minio/selfupdate v0.6.0
 	github.com/robfig/cron/v3 v3.0.1
-	golang.org/x/image v0.44.0
+	golang.org/x/image v0.45.0
 	golang.org/x/net v0.57.0
 	golang.org/x/sync v0.22.0
 	modernc.org/sqlite v1.56.0
